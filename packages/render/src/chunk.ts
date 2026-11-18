@@ -1,4 +1,4 @@
-import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, bodenHoehe, fbm, frei, type Spalte } from '@runeboom/core';
+import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, bodenHoehe, fbm, frei, amPfad, type Spalte } from '@runeboom/core';
 import { Grid, meshVoxels, srgbLin, type MeshDaten, type Voxel } from './voxel.ts';
 import { baum, fels, kristalle, riss, stumpf, setzling } from './modelle.ts';
 import { GLATT } from './schalter.ts';
@@ -65,7 +65,11 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     }
   }
   if (GLATT.an && stufe >= 3) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) { // reiner Unterwuchs: Farne, Blütenbüsche, dichteres Gras (nur Darstellung, ohne Einfluss auf die Rechnung)
-    const s = S(x, z); if (!s || s.a !== 'gras' || !frei(x, z, s)) continue;
+    const s = S(x, z); if (!s || s.a !== 'gras') continue;
+    if (!frei(x, z, s)) { // Bauzone um die Feste: nur dünnes Gras, nicht auf dem Pfad (Bauplätze bleiben sichtbar eben)
+      if (s.db >= 24 || s.db < 9 || amPfad(x, z, 4) || h3(x, 61, z) > 0.3) continue;
+      const jx = h3(x, 34, z), jz = h3(x, 35, z); natur.push(7, x - ox + 0.15 + jx * 0.7, bodenHoehe(x + 0.15 + jx * 0.7, z + 0.15 + jz * 0.7), z - oz + 0.15 + jz * 0.7, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.5, Math.floor(h3(x, 38, z) * 6), 0); continue;
+    }
     const dk = deko(x, z, s); if (dk && dk.art !== 'gras') continue;
     const wald = fbm(x, z, 0.045, seed() + 20), jx = h3(x, 34, z), jz = h3(x, 35, z), lx = x - ox + 0.15 + jx * 0.7, lz = z - oz + 0.15 + jz * 0.7, y = bodenHoehe(x + 0.15 + jx * 0.7, z + 0.15 + jz * 0.7), h = h3(x, 31, z);
     if (h < (wald > 0.52 ? 0.14 : 0.03)) natur.push(9, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 2), 0);
