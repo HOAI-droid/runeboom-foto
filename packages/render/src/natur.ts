@@ -126,7 +126,7 @@ let MASSETEX: THREE.CanvasTexture | null = null;
 function masseTex(): THREE.CanvasTexture {
   if (MASSETEX) return MASSETEX;
   const n = 256, cv = document.createElement('canvas'); cv.width = cv.height = n; const c = cv.getContext('2d')!, img = c.createImageData(n, n), d = img.data;
-  const wert = (x: number, y: number, per: number, sd: number) => { const fx = x / n * per, fy = y / n * per, xi = Math.floor(fx), yi = Math.floor(fy), tx = fx - xi, ty = fy - yi, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty), h = (i: number, j: number) => rz(((i % per) + per) % per, ((j % per) + per) % per, sd, 95);
+  const wert = (x: number, y: number, per: number, sd: number) => { const fx = x / n * per, fy = y / n * per, xi = Math.floor(fx), yi = Math.floor(fy), tx = fx - xi, ty = fy - yi, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty), h = (i: number, j: number) => { let q = (Math.imul(((i % per) + per) % per, 374761393) + Math.imul(((j % per) + per) % per, 668265263) + Math.imul(sd, 1442695041)) | 0; q = Math.imul(q ^ (q >>> 13), 1274126177); q = Math.imul(q ^ (q >>> 16), 2246822519); return ((q ^ (q >>> 15)) >>> 0) / 4294967296; };
     return h(xi, yi) * (1 - sx) * (1 - sy) + h(xi + 1, yi) * sx * (1 - sy) + h(xi, yi + 1) * (1 - sx) * sy + h(xi + 1, yi + 1) * sx * sy; };
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const k1 = wert(x, y, 4, 1), k2 = wert(x, y, 8, 2), f1 = wert(x, y, 20, 3), f2 = wert(x, y, 44, 4), f3 = wert(x, y, 90, 5);
