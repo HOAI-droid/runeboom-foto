@@ -98,13 +98,16 @@ function laubTex(): THREE.CanvasTexture {
  * Laubkarten: viele kleine Quadrate mit Blattbüschel-Textur, nach außen geneigt und beidseitig gezeichnet; die Normalen zeigen von der Krone
  * nach außen (weiche Kugelschattierung), die Farbe kommt je Ecke aus `farbe`. Pro Karte nur vier Ecken – daher sehr billig.
  */
-function karten(zentrum: [number, number, number], rx: number, ry: number, anzahl: number, groesse: number, s: number, farbe: Farbe, huelle = [0.55, 1.02], streu?: Streuung): THREE.BufferGeometry {
+function karten(zentrum: [number, number, number], rx: number, ry: number, anzahl: number, groesse: number, s: number, farbe: Farbe, huelle = [0.55, 1.02], streu?: Streuung, punkte?: number[][]): THREE.BufferGeometry {
   const pos: number[] = [], nor: number[] = [], col: number[] = [], uv: number[] = [], idx: number[] = [];
   const n = new THREE.Vector3(), u = new THREE.Vector3(), w = new THREE.Vector3(), sph = new THREE.Vector3(), q = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), tmp = new THREE.Color();
   for (let k = 0; k < anzahl; k++) {
-    const t = (k + 0.5) / anzahl, yy = 0.96 - 1.9 * t + 0.12 * (rz(k, 1, s, 41) - 0.5), az = k * 2.399963 + s, rr = Math.sqrt(Math.max(0, 1 - yy * yy));
-    const f = huelle[0] + (huelle[1] - huelle[0]) * Math.pow(rz(k, 2, s, 41), 0.6);
-    const cx = zentrum[0] + Math.cos(az) * rr * rx * f, cy = zentrum[1] + yy * ry * f, cz = zentrum[2] + Math.sin(az) * rr * rx * f;
+    let cx: number, cy: number, cz: number;
+    if (punkte) { [cx, cy, cz] = punkte[k]; } else {
+      const t = (k + 0.5) / anzahl, yy = 0.96 - 1.9 * t + 0.12 * (rz(k, 1, s, 41) - 0.5), az = k * 2.399963 + s, rr = Math.sqrt(Math.max(0, 1 - yy * yy));
+      const f = huelle[0] + (huelle[1] - huelle[0]) * Math.pow(rz(k, 2, s, 41), 0.6);
+      cx = zentrum[0] + Math.cos(az) * rr * rx * f; cy = zentrum[1] + yy * ry * f; cz = zentrum[2] + Math.sin(az) * rr * rx * f;
+    }
     n.set(cx - zentrum[0], (cy - zentrum[1]) * (rx / ry), cz - zentrum[2]).normalize();
     n.x += (rz(k, 3, s, 41) - 0.5) * 0.9; n.y += (rz(k, 4, s, 41) - 0.5) * 0.9 + 0.15; n.z += (rz(k, 5, s, 41) - 0.5) * 0.9; n.normalize();
     u.crossVectors(Math.abs(n.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : up, n).normalize(); w.crossVectors(n, u);
@@ -136,35 +139,59 @@ const PRESETS: Record<Art, Preset> = {
   ahorn: { stamm: [2.8, 4.4], dicke: [0.5, 0.75], aeste: [4, 6], breite: [1.1, 1.6], hoehe: [0.8, 1.15], steil: [0.4, 0.85], blatt: [1.0, 1.3], dichte: [0.85, 1.25], farben: ['#5c1e0e', '#c85c1c', '#ffae38'], rinde: ['#3a2a1d', '#6a5038'], ausreisser: ['#b02a18', '#e8c040', '#6a8a2a'], form: [0.85, 1.25], streuung: [0.05, 0.24, 0.14] },
   leucht: { stamm: [3.0, 5.0], dicke: [0.45, 0.7], aeste: [4, 5], breite: [0.9, 1.4], hoehe: [0.8, 1.2], steil: [0.4, 0.9], blatt: [0.9, 1.15], dichte: [0.8, 1.2], farben: ['#262048', '#4f4580', '#9a8fd2'], rinde: ['#2c2418', '#5a4630'], ausreisser: ['#7a4a9a', '#3a4a8a', '#b8a0e0'], form: [0.85, 1.3], streuung: [0.05, 0.2, 0.12] }
 };
+/** Wachstumsregeln je Art (Ebenen: 0 Stamm, 1 Äste, 2 Zweige, 3 Zweigspitzen mit Blättern), nach dem Vorbild rekursiver Baumgeneratoren */
+const WACHSTUM: Record<Art, { laenge: [number, number, number]; kinder: [number, number, number]; winkel: [number, number, number]; kraft: [number, number, number]; knorrig: [number, number, number, number]; start: [number, number, number]; verjuengung: [number, number, number, number]; blaetter: number }> = {
+  eiche: { laenge: [4.4, 2.9, 1.7], kinder: [5, 4, 5], winkel: [62, 50, 45], kraft: [0.0, 0.0, -0.01], knorrig: [0.05, 0.14, 0.22, 0.26], start: [0.45, 0.25, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
+  birke: { laenge: [3.4, 2.2, 1.5], kinder: [6, 4, 4], winkel: [32, 38, 42], kraft: [0.05, 0.02, -0.04], knorrig: [0.04, 0.09, 0.16, 0.2], start: [0.4, 0.2, 0.1], verjuengung: [0.55, 0.65, 0.8, 0.9], blaetter: 13 },
+  ahorn: { laenge: [3.9, 2.6, 1.6], kinder: [5, 4, 5], winkel: [50, 48, 44], kraft: [0.02, 0.01, 0.0], knorrig: [0.05, 0.12, 0.2, 0.24], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
+  leucht: { laenge: [3.8, 2.5, 1.5], kinder: [5, 4, 4], winkel: [56, 46, 42], kraft: [0.01, 0.0, 0.0], knorrig: [0.06, 0.16, 0.24, 0.28], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 13 }
+};
 /**
- * Laubbaum einer Art, prozedural je Variante: Stammhöhe und -dicke, Neigung, Zahl und Steilheit der Äste, Kronenbreite und -höhe, Blattgröße und -dichte.
- * Äste gabeln sich, an den Spitzen sitzen Büschel aus vielen Laubkarten; Farbe streut innerhalb der Krone (Ausreißerblätter, Ton, Helligkeit).
+ * Laubbaum einer Art, prozedural je Variante, mit rekursiv wachsendem Gerüst: Stamm → Äste → Zweige → Zweigspitzen. Jede Ebene hat Länge, Dicke,
+ * Verjüngung, Knorrigkeit (bei dünnen Ästen stärker), Wachstumskraft (zum Licht oder nach unten), Zahl und Startpunkt der Kinder und Abzweigwinkel.
+ * Blätter sitzen als Karten an den Zweigspitzen; Farbe streut innerhalb der Krone (Ausreißerblätter, Ton, Helligkeit).
  */
 function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.BufferGeometry {
-  const P = PRESETS[art], R = (i: number) => rz(i, v, 3, 77), W = (r: [number, number], i: number) => r[0] + (r[1] - r[0]) * R(i), s = v * 7.3 + 1 + art.length * 3, t: THREE.BufferGeometry[] = [];
+  const P = PRESETS[art], Wz = WACHSTUM[art], R = (i: number) => rz(i, v, 3, 77), W = (r: [number, number], i: number) => r[0] + (r[1] - r[0]) * R(i), s = v * 7.3 + 1 + art.length * 3, t: THREE.BufferGeometry[] = [];
+  let st = (Math.imul(v + 1, 9301) + art.length * 49297 + 17) >>> 0; const rnd = () => { st = (Math.imul(st, 1664525) + 1013904223) >>> 0; return st / 4294967296; };
   const [d, m, h] = P.farben.map((c) => '#' + new THREE.Color(c).offsetHSL((R(7) - 0.5) * 0.07, (R(13) - 0.5) * 0.15, (R(8) - 0.5) * 0.1).getHexString()) as [string, string, string];
-  const th = W(P.stamm, 1), neigung = (R(5) - 0.5) * (art === 'birke' ? 2.4 : 1.6), aeste = Math.round(W(P.aeste, 4)), hoehe = W(P.hoehe, 3), breite = W(P.breite, 2), dicke = W(P.dicke, 6), dichte = W(P.dichte, 14), blatt = W(P.blatt, 15);
-  t.push(ast(0, -0.3, 0, neigung, th + 0.3, neigung * 0.4, dicke, dicke * (art === 'birke' ? 0.38 : 0.4), P.rinde, fein ? 10 : 6));
-  const spitzen: [number, number, number, number][] = [];
-  for (let k = 0; k < aeste; k++) {
-    const az = k * (6.283 / aeste) + R(9) * 6 + rz(k, v, 1, 90) * 0.7, el = P.steil[0] + (P.steil[1] - P.steil[0]) * rz(k, v, 2, 90), len = (2.4 + 2.4 * rz(k, v, 3, 90)) * breite, y0 = th * (0.6 + 0.4 * rz(k, v, 4, 90));
-    const sx = neigung * (y0 / th), sz = neigung * 0.4 * (y0 / th), dx = Math.cos(az) * Math.cos(el), dy = Math.sin(el), dz = Math.sin(az) * Math.cos(el);
-    const fx = sx + dx * len * 0.6, fy = y0 + dy * len * 0.6 * hoehe, fz = sz + dz * len * 0.6;
-    t.push(ast(sx, y0, sz, fx, fy, fz, dicke * 0.38, dicke * 0.2, P.rinde, 6));
-    const zweige = 2 + (rz(k, v, 5, 90) > 0.45 ? 1 : 0);
-    for (let g = 0; g < zweige; g++) {
-      const w = az + (g - (zweige - 1) / 2) * (0.7 + 0.4 * rz(k, g, 6, 90)), e2 = el + (rz(k, g, 7, 90) - 0.4) * 0.6, l2 = len * (0.5 + 0.35 * rz(k, g, 8, 90)), ex = fx + Math.cos(w) * Math.cos(e2) * l2, ey = fy + Math.sin(e2) * l2 * hoehe + 0.3, ez = fz + Math.sin(w) * Math.cos(e2) * l2;
-      t.push(ast(fx, fy, fz, ex, ey, ez, dicke * 0.2, dicke * 0.08, P.rinde, 5)); spitzen.push([ex, ey, ez, 0.9 + 0.7 * rz(k, g, 9, 90)]);
+  const th = W(P.stamm, 1), neigung = (R(5) - 0.5) * (art === 'birke' ? 2.4 : 1.6), hoehe = W(P.hoehe, 3), breite = W(P.breite, 2), dicke = W(P.dicke, 6), dichte = W(P.dichte, 14), blatt = W(P.blatt, 15), steilV = 0.75 + 0.5 * R(4), knV = 0.7 + 0.7 * R(9);
+  const laenge = [th, Wz.laenge[0] * breite * (0.85 + 0.3 * R(10)), Wz.laenge[1] * breite * (0.85 + 0.3 * R(11)), Wz.laenge[2] * breite], radius = [dicke, dicke * 0.42, dicke * 0.2, dicke * 0.09], sek = fein ? [6, 4, 3, 2] : [4, 3, 2, 2];
+  const blattProZweig = Math.max(3, Math.round(Wz.blaetter * dichte * (fein ? 1 : 0.28))), punkte: number[][] = [], hoch = new THREE.Vector3(0, 1, 0), ref = new THREE.Vector3(1, 0, 0), a1 = new THREE.Vector3(), a2 = new THREE.Vector3(), q = new THREE.Quaternion();
+  const drehe = (vec: THREE.Vector3, achse: THREE.Vector3, w: number) => vec.applyQuaternion(q.setFromAxisAngle(achse, w));
+  const wachse = (start: THREE.Vector3, richtung: THREE.Vector3, ebene: number, len: number, rad: number): void => {
+    const pts: { p: THREE.Vector3; d: THREE.Vector3; r: number }[] = [], n = sek[ebene], sl = len / n, dir = richtung.clone().normalize(), pos = start.clone();
+    for (let i = 0; i <= n; i++) {
+      const r = Math.max(0.012, rad * (1 - Wz.verjuengung[ebene] * (i / n))); pts.push({ p: pos.clone(), d: dir.clone(), r });
+      if (i < n) {
+        const gn = Math.min(0.5, Wz.knorrig[ebene] * knV * Math.max(1, 0.35 / Math.sqrt(r))); a1.crossVectors(dir, Math.abs(dir.y) > 0.95 ? ref : hoch).normalize(); a2.crossVectors(dir, a1).normalize();
+        drehe(dir, a1, (rnd() - 0.5) * 2 * gn); drehe(dir, a2, (rnd() - 0.5) * 2 * gn);
+        if (ebene > 0) { const kr = Wz.kraft[ebene - 1]; dir.y += kr * 0.12 / Math.max(r, 0.05) * Math.sign(1); dir.normalize(); } else dir.lerp(hoch, 0.05).normalize();
+        pos.addScaledVector(dir, sl);
+      }
     }
-    spitzen.push([fx, fy + 0.4, fz, 0.8 + 0.4 * rz(k, 0, 10, 90)]);
-  }
-  spitzen.push([neigung, th + 1.5 * hoehe, neigung * 0.4, 1.1]);
-  const cy = th + 2.2, farbe = kronenFarbe(cy, 3.4 * hoehe, 3.6 * breite, s, d, m, h);
+    if (ebene <= 2) for (let i = 0; i < n; i++) t.push(ast(pts[i].p.x, pts[i].p.y, pts[i].p.z, pts[i + 1].p.x, pts[i + 1].p.y, pts[i + 1].p.z, pts[i].r, pts[i + 1].r, P.rinde, ebene === 0 ? (fein ? 10 : 6) : 5));
+    if (ebene < 3) {
+      const kinder = Math.round(Wz.kinder[ebene] * (ebene === 0 ? (P.aeste[0] + (P.aeste[1] - P.aeste[0]) * R(12)) / 5 : 1) * (0.85 + 0.3 * rnd())), versatz = rnd();
+      for (let c = 0; c < kinder; c++) {
+        const tt = Wz.start[ebene] + (1 - Wz.start[ebene]) * rnd(), ix = Math.min(n - 1, Math.floor(tt * n)), al = tt * n - ix, A = pts[ix], B = pts[ix + 1];
+        const cp = new THREE.Vector3().lerpVectors(A.p, B.p, al), pd = new THREE.Vector3().lerpVectors(A.d, B.d, al).normalize(), pr = A.r + (B.r - A.r) * al;
+        a1.crossVectors(pd, Math.abs(pd.y) > 0.95 ? ref : hoch).normalize(); drehe(a1, pd, 6.2832 * (versatz + c / kinder));
+        const winkel = (Wz.winkel[ebene] * (ebene === 0 ? steilV : 1) * (0.8 + 0.4 * rnd())) * Math.PI / 180, cd = pd.clone(); drehe(cd, a1, winkel);
+        wachse(cp, cd, ebene + 1, laenge[ebene + 1] * (0.8 + 0.4 * rnd()) * (1 - 0.3 * tt) * (ebene === 0 ? hoehe * 0.6 + 0.5 : 1), Math.min(radius[ebene + 1], pr * 0.62));
+      }
+    } else {
+      for (let l = 0; l < blattProZweig; l++) { const tt = 0.12 + 0.88 * rnd(), ix = Math.min(n - 1, Math.floor(tt * n)), al = tt * n - ix, c = new THREE.Vector3().lerpVectors(pts[ix].p, pts[ix + 1].p, al); punkte.push([c.x + (rnd() - 0.5) * 0.5, c.y + (rnd() - 0.5) * 0.5, c.z + (rnd() - 0.5) * 0.5]); }
+    }
+  };
+  wachse(new THREE.Vector3(0, -0.3, 0), new THREE.Vector3(neigung * 0.05, 1, neigung * 0.02), 0, th + 0.3, radius[0]);
+  let mx = 0, my = 0, mz = 0, hx = 0, ymin = 1e9, ymax = -1e9; for (const [x, y, z] of punkte) { mx += x; my += y; mz += z; ymin = Math.min(ymin, y); ymax = Math.max(ymax, y); }
+  mx /= punkte.length; my /= punkte.length; mz /= punkte.length; for (const [x, , z] of punkte) hx = Math.max(hx, Math.hypot(x - mx, z - mz));
+  const farbe = kronenFarbe(my, Math.max(1.5, (ymax - ymin) / 2), Math.max(1.5, hx), s, d, m, h);
   const streu: Streuung = { h: P.streuung[0], s: P.streuung[1], l: P.streuung[2], form: P.form, aus: P.ausreisser.map((c) => new THREE.Color(c)), ausWahr: 0.14 + 0.1 * R(16) };
-  const nutz = fein ? spitzen : spitzen.filter((_, i) => i % 3 === 0 || i === spitzen.length - 1), gesamt = (fein ? 1500 : 150) * dichte;
-  nutz.forEach(([x, y, z, g], i) => t.push(karten([x, y, z], 1.5 * g, 1.15 * g, Math.max(8, Math.round(gesamt / nutz.length * (0.7 + 0.6 * g))), (fein ? 0.8 : 1.9) * blatt * (0.85 + 0.3 * rz(i, v, 4, 91)), s + i * 1.7, farbe, [0.35, 1.0], streu)));
-  { const kern = new THREE.Color(m).multiplyScalar(0.45); t.push(buschel(1.1 * breite, 0.9, 1.1 * breite, neigung, th + 1.5, neigung * 0.4, s, () => kern, 1, 0.3)); }
-  if (beeren) for (let i = 0; i < 8; i++) { const [x, y, z] = spitzen[i % spitzen.length], aa = rz(i, 1, v, 5) * 6.28; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(x + Math.cos(aa) * 1.3, y + (rz(i, 2, v, 5) - 0.5) * 1.5, z + Math.sin(aa) * 1.3), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
+  t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 0.8 : 1.9) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
+  { const kern = new THREE.Color(m).multiplyScalar(0.45); t.push(buschel(hx * 0.45, (ymax - ymin) * 0.22, hx * 0.45, mx, my, mz, s, () => kern, 1, 0.3)); }
+  if (beeren) for (let i = 0; i < 8; i++) { const [x, y, z] = punkte[Math.floor(rz(i, 3, v, 5) * punkte.length)], aa = rz(i, 1, v, 5) * 6.28; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(x + Math.cos(aa) * 0.8, y + (rz(i, 2, v, 5) - 0.5), z + Math.sin(aa) * 0.8), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
   if (fein) for (let k = 0; k < 3 + Math.floor(R(10) * 3); k++) { const aa = k * 2.1 + R(11) * 6, dx = Math.cos(aa), dz = Math.sin(aa), l = 1.3 + R(12) * 0.8; t.push(ast(dx * 0.25, 0.15, dz * 0.25, dx * l, -0.3, dz * l, dicke * 0.45, dicke * 0.15, P.rinde, 5)); }
   return vereint(t, true);
 }
@@ -324,18 +351,25 @@ let MAT: { fest: THREE.Material; gras: THREE.Material; laub: THREE.Material; nad
 /** Netze je Detailstufe (1 = nah, fein; 0 = mittlere Entfernung, wenige Dreiecke); einmal je Art, geteilt von allen Kacheln */
 /** Zahl der Varianten je Art (prozedural erzeugt, Instanzen wählen eine aus) */
 const NV: Record<number, number> = { [NAT.laub]: 16, [NAT.tanne]: 12, [NAT.herbst]: 16, [NAT.leucht]: 8, [NAT.busch]: 5, [NAT.tot]: 3, [NAT.fels]: 6, [NAT.gras]: 6, [NAT.blume]: 4, [NAT.farn]: 3, [NAT.bluete]: 4, [NAT.schilf]: 3 };
-function netze(fein: boolean): Map<string, THREE.BufferGeometry> {
-  const L = fein ? 1 : 0; if (NETZE[L]) return NETZE[L]!; const m = new Map<string, THREE.BufferGeometry>();
-  for (let v = 0; v < 16; v++) {
-    m.set(`${NAT.laub}/${v}`, laubbaum(v, 'eiche', false, fein)); m.set(`${NAT.herbst}/${v}`, laubbaum(v + 10, v % 2 === 0 ? 'birke' : 'ahorn', false, fein));
-    if (v < 8) m.set(`${NAT.leucht}/${v}`, laubbaum(v + 20, 'leucht', true, fein));
-    if (v < 12) m.set(`${NAT.tanne}/${v}`, tanne(v, fein)); if (v < 5) m.set(`${NAT.busch}/${v}`, busch(v, fein)); if (v < 3) m.set(`${NAT.tot}/${v}`, toterBaum(v)); if (v < 6) m.set(`${NAT.fels}/${v}`, fels(v, fein));
+/** Netz einer Art und Variante, erst beim ersten Bedarf gebaut (die Baumgerüste kosten etwas Rechenzeit) */
+function netzFuer(fein: boolean, key: string): THREE.BufferGeometry | undefined {
+  const L = fein ? 1 : 0, cache = (NETZE[L] ??= new Map<string, THREE.BufferGeometry>()); let g = cache.get(key); if (g) return g;
+  const [art, v] = key.split('/').map(Number);
+  switch (art) {
+    case NAT.laub: g = laubbaum(v, 'eiche', false, fein); break;
+    case NAT.herbst: g = laubbaum(v + 10, v % 2 === 0 ? 'birke' : 'ahorn', false, fein); break;
+    case NAT.leucht: g = laubbaum(v + 20, 'leucht', true, fein); break;
+    case NAT.tanne: g = tanne(v, fein); break;
+    case NAT.busch: g = busch(v, fein); break;
+    case NAT.tot: g = toterBaum(v); break;
+    case NAT.fels: g = fels(v, fein); break;
+    case NAT.farn: g = farn(v, fein); break;
+    case NAT.schilf: g = schilf(v, fein); break;
+    case NAT.bluete: g = bluetenbusch(v, fein); break;
+    case NAT.gras: g = gras(v); break;
+    case NAT.blume: g = blume(v, BLUMEN[v % BLUMEN.length]); break;
   }
-  for (let v = 0; v < 3; v++) { m.set(`${NAT.farn}/${v}`, farn(v, fein)); m.set(`${NAT.schilf}/${v}`, schilf(v, fein)); }
-  for (let v = 0; v < BLUETEN.length; v++) m.set(`${NAT.bluete}/${v}`, bluetenbusch(v, fein));
-  for (let v = 0; v < 6; v++) m.set(`${NAT.gras}/${v}`, gras(v));
-  for (let v = 0; v < BLUMEN.length; v++) m.set(`${NAT.blume}/${v}`, blume(v, BLUMEN[v]));
-  return (NETZE[L] = m);
+  if (g) cache.set(key, g); return g;
 }
 function material(): { fest: THREE.Material; gras: THREE.Material; laub: THREE.Material; nadel: THREE.Material } {
   return MAT ??= {
@@ -347,13 +381,13 @@ function material(): { fest: THREE.Material; gras: THREE.Material; laub: THREE.M
 
 /** Instanzliste einer Kachel in Netze verwandeln; Rückgabe gehört der Kachel (`userData.geteilt`: Netze nicht freigeben) */
 export function baueNatur(liste: Float32Array, schatten: boolean): THREE.Object3D[] {
-  const N = netze(schatten), M = material(), gruppen = new Map<string, number[]>();
+  const M = material(), gruppen = new Map<string, number[]>();
   for (let i = 0; i < liste.length; i += NAT_SCHRITT) {
     const art = liste[i], v = liste[i + 6], key = `${art}/${v % (NV[art] ?? 2)}`; (gruppen.get(key) ?? gruppen.set(key, []).get(key)!).push(i);
   }
   const aus: THREE.Object3D[] = [], mat4 = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), sk = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), farbe = new THREE.Color();
   for (const [key, idx] of gruppen) {
-    const geo = N.get(key); if (!geo) continue; const art = +key.split('/')[0], klein = art === NAT.gras || art === NAT.blume || art === NAT.farn || art === NAT.schilf;
+    const geo = netzFuer(schatten, key); if (!geo) continue; const art = +key.split('/')[0], klein = art === NAT.gras || art === NAT.blume || art === NAT.farn || art === NAT.schilf;
     const mesh = new THREE.InstancedMesh(geo, art === NAT.farn ? M.nadel : klein ? M.gras : art === NAT.fels ? M.fest : art === NAT.tanne ? M.nadel : M.laub, idx.length);
     idx.forEach((i, k) => {
       const X = liste[i + 1], Z = liste[i + 3], baum = art <= NAT.tot || art === NAT.leucht || art === NAT.busch;
