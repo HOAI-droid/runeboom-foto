@@ -28,6 +28,22 @@ const JAHR_GLSL = `vec3 jahreszeit(vec3 c, vec3 n) {
   c = mix(c, vec3(0.86, 0.9, 0.96), oben * uWinter * 0.88);
   return c; }`;
 /** uSonne: Einheitsvektor zur Sonne (bzw. zum Mond), uSonneC: Farbe × Stärke – für das Durchleuchten von Laub gegen das Licht */
+/** Wind: Schwanken mit der Höhe und Flattern der Karten, Phase je Instanz (gleiche Rechnung in knoten.ts) */
+const WIND_GLSL = (w: WindWerte) => `
+float wh = clamp(position.y * ${w[1].toFixed(3)}, 0.0, 1.0);
+#ifdef USE_UV
+float wk = 1.0 + 0.7 * uv.y * (1.0 - step(${w[2].toFixed(3)}, uv.x));
+#else
+float wk = 1.0;
+#endif
+#ifdef USE_INSTANCING
+vec2 wph = instanceMatrix[3].xz;
+#else
+vec2 wph = vec2(0.0);
+#endif
+float wt = uZeit * 1.7 + wph.x * 0.23 + wph.y * 0.31;
+transformed.x += (sin(wt) * 0.7 + sin(wt * 2.3 + 1.7) * 0.3) * ${w[0].toFixed(3)} * wh * wk;
+transformed.z += (cos(wt * 0.9 + 0.6) * 0.7 + sin(wt * 3.1) * 0.3) * ${w[0].toFixed(3)} * wh * wk;`;
 export const LICHT_U = { uLicht: { value: lichtTex }, uNacht: { value: 0 }, uLichtFarbe: { value: new THREE.Color('#ffb36a') }, uSonne: { value: new THREE.Vector3(0, 1, 0) }, uSonneC: { value: new THREE.Color('#ffbe6e') } };
 type Lichtquelle = { x: number; z: number; r: number; kegel?: number; geb?: { zielen: number } };
 const LK_FEST = new Uint8Array(LK * LK);
@@ -58,11 +74,13 @@ export function lichtkarteSetzen(lichter: Lichtquelle[], fest = true, nacht = tr
   lichtTex.needsUpdate = true;
 }
 /** Material bekommt Licht aus der Lichtkarte, nachts */
-export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0): T {
+/** wind = [Ausschlag, Höhenfaktor (je Block Höhe), UV-Grenze rechts: Teile mit u darüber – Stämme, Kerne – schwanken nur mit der Höhe]; 0 = kein Wind */
+export type WindWerte = [number, number, number];
+export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0, wind: WindWerte | 0 = 0): T {
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, LICHT_U);
-    Object.assign(sh.uniforms, JAHR_U);
-    sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n{ vec4 w4 = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nw4 = instanceMatrix * w4;\n#endif\nvWP = (modelMatrix * w4).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal); }');
+    Object.assign(sh.uniforms, JAHR_U); sh.uniforms.uZeit = ZEIT;
+    sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN; uniform float uZeit;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>' + (wind ? WIND_GLSL(wind) : '') + '\n{ vec4 w4 = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nw4 = instanceMatrix * w4;\n#endif\nvWP = (modelMatrix * w4).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal); }');
     sh.fragmentShader = 'uniform sampler2D uLicht; uniform float uNacht, uFruehling, uHerbst, uWinter; uniform vec3 uLichtFarbe, uSonne, uSonneC; varying vec3 vWP; varying vec3 vWN;\n' + JAHR_GLSL + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = jahreszeit(diffuseColor.rgb, vWN);').replace('#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>\nfloat lmw = texture2D(uLicht, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r;\ntotalEmissiveRadiance += diffuseColor.rgb * uLichtFarbe * lmw * lmw * uNacht * ${staerke.toFixed(2)};${durch > 0 ? `\nfloat rueck = pow(clamp(dot(-normalize(cameraPosition - vWP), uSonne), 0.0, 1.0), 2.2); totalEmissiveRadiance += diffuseColor.rgb * uSonneC * rueck * ${durch.toFixed(2)};` : ''}`);
     if (maske) { // unter fertigen Kacheln ausblenden
@@ -70,7 +88,7 @@ export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, m
       sh.fragmentShader = 'uniform sampler2D uMaske;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `if (texture2D(uMaske, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r > ${schwelle.toFixed(2)}) discard;\n#include <clipping_planes_fragment>`);
     }
   };
-  mat.customProgramCacheKey = () => `lichtkarte-${maske ? 'maske' : 'frei'}-${staerke}-${schwelle}-${durch}`;
+  mat.customProgramCacheKey = () => `lichtkarte-${maske ? 'maske' : 'frei'}-${staerke}-${schwelle}-${durch}-${wind ? wind.join('_') : 'still'}`;
   return mat;
 }
 
@@ -80,7 +98,7 @@ export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, m
  */
 export const FABRIK = {
   gpu: false,
-  licht: (p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0): THREE.Material => mitLichtkarte(new THREE.MeshStandardMaterial(p), staerke, maske, schwelle, durch),
+  licht: (p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0, wind: WindWerte | 0 = 0): THREE.Material => mitLichtkarte(new THREE.MeshStandardMaterial(p), staerke, maske, schwelle, durch, wind),
   wasser: (): THREE.Material => wasserGL(),
   lava: (): THREE.Material => lavaGL(),
   himmel: (u: { uTop: { value: THREE.Color }; uBot: { value: THREE.Color }; uFog: { value: THREE.Color } }): THREE.Material => himmelGL(u),

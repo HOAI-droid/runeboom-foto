@@ -1,4 +1,4 @@
-import { CH, WR, bodenHoehe, eckeHoehe, fbm, seed, WASSER_Y, LAVA_Y, type Spalte } from '@runeboom/core';
+import { CH, WR, bodenHoehe, eckeHoehe, fbm, seed, pfadRand, pfadMitte, WASSER_Y, LAVA_Y, type Spalte } from '@runeboom/core';
 import { lin, srgbLin } from './voxel.ts';
 
 /**
@@ -10,7 +10,7 @@ export interface BodenNetz { p: Float32Array; n: Float32Array; c: Float32Array; 
 
 const klemme = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const glatt = (a: number, b: number, t: number) => { const u = klemme((t - a) / (b - a)); return u * u * (3 - 2 * u); };
-const FELS = lin('#857d70'), FELS_DUNKEL = lin('#5a544b'), ERDE = lin('#6f5a3c'), SAND = lin('#8d8466'), SCHLAMM = lin('#4f4d35'), RAND = lin('#5d5750');
+const ERDWEG = lin('#a68a5c'), WEGDUNKEL = lin('#6a5638'), RANDERDE = lin('#4a3c26'), FELS = lin('#857d70'), FELS_DUNKEL = lin('#5a544b'), ERDE = lin('#6f5a3c'), SAND = lin('#8d8466'), SCHLAMM = lin('#4f4d35'), RAND = lin('#5d5750');
 
 /** Normale des glatten Geländes (Mittelpunktsdifferenzen, über Kachelgrenzen hinweg gleich) */
 export function bodenNormale(x: number, z: number, e = 0.5): [number, number, number] {

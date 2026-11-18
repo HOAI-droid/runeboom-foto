@@ -155,7 +155,7 @@ function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.Buffe
   const P = PRESETS[art], Wz = WACHSTUM[art], R = (i: number) => rz(i, v, 3, 77), W = (r: [number, number], i: number) => r[0] + (r[1] - r[0]) * R(i), s = v * 7.3 + 1 + art.length * 3, t: THREE.BufferGeometry[] = [];
   let st = (Math.imul(v + 1, 9301) + art.length * 49297 + 17) >>> 0; const rnd = () => { st = (Math.imul(st, 1664525) + 1013904223) >>> 0; return st / 4294967296; };
   const [d, m, h] = P.farben.map((c) => '#' + new THREE.Color(c).offsetHSL((R(7) - 0.5) * 0.07, (R(13) - 0.5) * 0.15, (R(8) - 0.5) * 0.1).getHexString()) as [string, string, string];
-  const th = W(P.stamm, 1), neigung = (R(5) - 0.5) * (art === 'birke' ? 2.4 : 1.6), hoehe = W(P.hoehe, 3), breite = W(P.breite, 2), dicke = W(P.dicke, 6), dichte = W(P.dichte, 14), blatt = W(P.blatt, 15), steilV = 0.75 + 0.5 * R(4), knV = 0.7 + 0.7 * R(9);
+  const th = W(P.stamm, 1), neigung = (R(5) - 0.5) * (art === 'birke' ? 2.4 : 1.6), hoehe = W(P.hoehe, 3), breite = W(P.breite, 2), dicke = W(P.dicke, 6) * 1.3, dichte = W(P.dichte, 14), blatt = W(P.blatt, 15), steilV = 0.75 + 0.5 * R(4), knV = 0.7 + 0.7 * R(9);
   const laenge = [th, Wz.laenge[0] * breite * (0.85 + 0.3 * R(10)), Wz.laenge[1] * breite * (0.85 + 0.3 * R(11)), Wz.laenge[2] * breite], radius = [dicke, dicke * 0.42, dicke * 0.2, dicke * 0.09], sek = fein ? [6, 4, 3, 2] : [4, 3, 2, 2];
   const blattProZweig = Math.max(3, Math.round(Wz.blaetter * dichte * (fein ? 1 : 0.28))), punkte: number[][] = [], hoch = new THREE.Vector3(0, 1, 0), ref = new THREE.Vector3(1, 0, 0), a1 = new THREE.Vector3(), a2 = new THREE.Vector3(), q = new THREE.Quaternion();
   const drehe = (vec: THREE.Vector3, achse: THREE.Vector3, w: number) => vec.applyQuaternion(q.setFromAxisAngle(achse, w));
@@ -373,9 +373,9 @@ function netzFuer(fein: boolean, key: string): THREE.BufferGeometry | undefined 
 }
 function material(): { fest: THREE.Material; gras: THREE.Material; laub: THREE.Material; nadel: THREE.Material } {
   return MAT ??= {
-    fest: FABRIK.licht({ vertexColors: true, map: felsTex(), roughness: 0.9, metalness: 0 }, 1.2), gras: FABRIK.licht({ vertexColors: true, map: grasTex(), alphaTest: 0.4, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.7),
-    laub: FABRIK.licht({ vertexColors: true, map: laubTex(), alphaTest: 0.5, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 1.1),
-    nadel: FABRIK.licht({ vertexColors: true, map: nadelTex(), alphaTest: 0.45, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.8)
+    fest: FABRIK.licht({ vertexColors: true, map: felsTex(), roughness: 0.9, metalness: 0 }, 1.2), gras: FABRIK.licht({ vertexColors: true, map: grasTex(), alphaTest: 0.4, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.7, [0.2, 1.0, 0.94]),
+    laub: FABRIK.licht({ vertexColors: true, map: laubTex(), alphaTest: 0.5, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 1.1, [0.12, 0.05, 0.87]),
+    nadel: FABRIK.licht({ vertexColors: true, map: nadelTex(), alphaTest: 0.45, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.8, [0.08, 0.05, 0.94])
   };
 }
 

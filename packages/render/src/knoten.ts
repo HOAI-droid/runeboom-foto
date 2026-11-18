@@ -1,10 +1,11 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, If, Discard, float, vec2, vec3, vec4, uniform, texture, attribute, varying, positionWorld, positionLocal, diffuseColor,
-  floor, fract, sin, dot, cameraPosition, mix, smoothstep, step, abs, clamp, max, pow, length, exp, normalize, select, uv, pass, convertToTexture, screenSize, normalWorld
+  floor, fract, sin, cos, dot, cameraPosition, instanceIndex, mix, smoothstep, step, abs, clamp, max, pow, length, exp, normalize, select, uv, pass, convertToTexture, screenSize, normalWorld
 } from 'three/tsl';
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { WR } from '@runeboom/core';
+import type { WindWerte } from './grafik.ts';
 import { FABRIK, LICHT_U, JAHR_U, WASSER_U, ZEIT, lichtTex, materialienNeu, type NebelU, type Post, type Beleuchtung } from './grafik.ts';
 
 /**
@@ -51,8 +52,13 @@ const jahreszeit = (c0: N, n: N): N => {
 
 // ---------- Materialien ----------
 const uSonne = uniform(LICHT_U.uSonne.value).onFrameUpdate(() => LICHT_U.uSonne.value), uSonneC = uniform(LICHT_U.uSonneC.value).onFrameUpdate(() => LICHT_U.uSonneC.value);
-function licht(p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0): THREE.Material {
+function licht(p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0, wind: WindWerte | 0 = 0): THREE.Material {
   const m = new THREE.MeshStandardNodeMaterial(p as any);
+  if (wind) { // Wind wie WIND_GLSL in grafik.ts; die Phase je Instanz kommt hier vom Instanzindex
+    const wh = clamp(positionLocal.y.mul(wind[1]), 0, 1), wk = uv().y.mul(0.7).mul(step(uv().x, wind[2])).add(1), wt = uZeit.mul(1.7).add(float(instanceIndex).mul(1.37)).add(positionLocal.x.mul(0.23));
+    const sx = sin(wt).mul(0.7).add(sin(wt.mul(2.3).add(1.7)).mul(0.3)), sz = cos(wt.mul(0.9).add(0.6)).mul(0.7).add(sin(wt.mul(3.1)).mul(0.3)), a = wh.mul(wk).mul(wind[0]);
+    m.positionNode = positionLocal.add(vec3(sx.mul(a), 0, sz.mul(a)));
+  }
   // nach dem Zusammensetzen der Grundfarbe (Material, Ecken- und Instanzfarbe) die Jahreszeit anwenden
   const grund = (m as any).setupDiffuseColor.bind(m);
   (m as any).setupDiffuseColor = (b: unknown) => { grund(b); diffuseColor.assign(vec4(jahreszeit(diffuseColor.rgb, normalWorld), diffuseColor.a)); };

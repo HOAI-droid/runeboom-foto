@@ -1,4 +1,4 @@
-import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, bodenHoehe, fbm, frei, amPfad, type Spalte } from '@runeboom/core';
+import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, bodenHoehe, fbm, frei, amPfad, pfadRand, type Spalte } from '@runeboom/core';
 import { Grid, meshVoxels, srgbLin, type MeshDaten, type Voxel } from './voxel.ts';
 import { baum, fels, kristalle, riss, stumpf, setzling } from './modelle.ts';
 import { GLATT } from './schalter.ts';
@@ -66,16 +66,31 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
   }
   if (GLATT.an && stufe >= 3) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) { // reiner Unterwuchs: Farne, Blütenbüsche, dichteres Gras (nur Darstellung, ohne Einfluss auf die Rechnung)
     const s = S(x, z); if (!s || s.a !== 'gras') continue;
-    if (!frei(x, z, s)) { // Bauzone um die Feste: nur dünnes Gras, nicht auf dem Pfad (Bauplätze bleiben sichtbar eben)
-      if (s.db >= 24 || s.db < 9 || amPfad(x, z, 4) || h3(x, 61, z) > 0.3) continue;
-      const jx = h3(x, 34, z), jz = h3(x, 35, z); natur.push(7, x - ox + 0.15 + jx * 0.7, bodenHoehe(x + 0.15 + jx * 0.7, z + 0.15 + jz * 0.7), z - oz + 0.15 + jz * 0.7, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.5, Math.floor(h3(x, 38, z) * 6), 0); continue;
+    if (!frei(x, z, s)) {
+      if (s.db < 24) { // Bauzone um die Feste: nur dünnes Gras, nicht auf dem Pfad (Bauplätze bleiben sichtbar eben)
+        if (s.db < 9 || amPfad(x, z, 4) || h3(x, 61, z) > 0.3) continue;
+        const jx = h3(x, 34, z), jz = h3(x, 35, z); natur.push(7, x - ox + 0.15 + jx * 0.7, bodenHoehe(x + 0.15 + jx * 0.7, z + 0.15 + jz * 0.7), z - oz + 0.15 + jz * 0.7, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.5, Math.floor(h3(x, 38, z) * 6), 0); continue;
+      }
+      if (!amPfad(x, z, 5)) continue; // außerhalb der Bauzone nur der Wegrand bekommt Bewuchs, die übrigen gesperrten Stellen (Risse, Kristalle) nicht
     }
+    const prA = pfadRand(x + 0.5, z + 0.5);
     const dk = deko(x, z, s); if (dk && dk.art !== 'gras') continue;
     const wald = fbm(x, z, 0.045, seed() + 20), jx = h3(x, 34, z), jz = h3(x, 35, z), lx = x - ox + 0.15 + jx * 0.7, lz = z - oz + 0.15 + jz * 0.7, y = bodenHoehe(x + 0.15 + jx * 0.7, z + 0.15 + jz * 0.7), h = h3(x, 31, z);
-    if (h < (wald > 0.52 ? 0.14 : 0.03)) natur.push(9, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 2), 0);
-    else if (h3(x, 32, z) < 0.012) natur.push(10, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.5, Math.floor(h3(x, 38, z) * 4), 0);
-    else if (h3(x, 48, z) < 0.012) { const g = 0.7 + h3(x, 49, z) * 1.0; natur.push(6, lx, y, lz, h3(x, 36, z) * 6.283, g, Math.floor(h3(x, 38, z) * 6), 0); for (let q = 0; q < 3; q++) { const fx = lx + (h3(x, 50 + q, z) - 0.5) * 2.4 * g, fz = lz + (h3(x, 53 + q, z) - 0.5) * 2.4 * g; natur.push(9, fx, bodenHoehe(ox + fx, oz + fz) - 0.05, fz, h3(x, 56 + q, z) * 6.283, 0.9 + h3(x, 59 + q, z) * 0.6, q, 0); } }
-    else if (h3(x, 33, z) < 0.3) natur.push(7, lx, y, lz, h3(x, 36, z) * 6.283, 0.9 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 3), 0);
+    if (prA > 0.8 && h < (wald > 0.52 ? 0.14 : 0.03)) natur.push(9, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 2), 0);
+    else if (prA > 0.8 && h3(x, 32, z) < 0.012) natur.push(10, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.5, Math.floor(h3(x, 38, z) * 4), 0);
+    else if (prA > 0.8 && h3(x, 48, z) < 0.012) { const g = 0.7 + h3(x, 49, z) * 1.0; natur.push(6, lx, y, lz, h3(x, 36, z) * 6.283, g, Math.floor(h3(x, 38, z) * 6), 0); for (let q = 0; q < 3; q++) { const fx = lx + (h3(x, 50 + q, z) - 0.5) * 2.4 * g, fz = lz + (h3(x, 53 + q, z) - 0.5) * 2.4 * g; natur.push(9, fx, bodenHoehe(ox + fx, oz + fz) - 0.05, fz, h3(x, 56 + q, z) * 6.283, 0.9 + h3(x, 59 + q, z) * 0.6, q, 0); } }
+    // Gras: Dichte nach Abstand zu Weg und Wasser, im Wald kürzer; mehrere Büschel je Block mit Versatz
+    const pr = pfadRand(x + 0.5, z + 0.5);
+    let wd = 9; for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) { const q = S(x + dx, z + dz); if (q && q.a === 'w') wd = Math.min(wd, Math.hypot(dx, dz)); }
+    const dichte = Math.min(1, Math.max(0, (pr - 0.2) / 1.6)) * Math.min(1, Math.max(0, (wd - 0.9) / 2.2)), zahl = Math.floor(dichte * (wald > 0.52 ? 2.2 : 3.4) + h3(x, 70, z));
+    for (let q = 0; q < Math.min(4, zahl); q++) { const gx = lx + (h3(x, 71 + q, z) - 0.5) * 0.9, gz = lz + (h3(x, 75 + q, z) - 0.5) * 0.9; natur.push(7, gx, bodenHoehe(ox + gx, oz + gz), gz, h3(x, 79 + q, z) * 6.283, (wald > 0.52 ? 0.75 : 0.95) + h3(x, 83 + q, z) * 0.7, Math.floor(h3(x, 87 + q, z) * 6), 0); }
+    // Wegrand: trockene Büschel und Kiesel
+    if (pr > -0.2 && pr < 1.4) {
+      if (h3(x, 91, z) < 0.55) natur.push(7, lx, y, lz, h3(x, 36, z) * 6.283, 0.55 + h3(x, 37, z) * 0.4, 3, 0);
+      if (h3(x, 92, z) < 0.22) natur.push(6, lx, y - 0.02, lz, h3(x, 36, z) * 6.283, 0.1 + h3(x, 93, z) * 0.2, Math.floor(h3(x, 94, z) * 6), 0);
+    }
+    // Wasserkante: Steine im Gras
+    if (wd < 2.2 && wd > 0.9 && h3(x, 95, z) < 0.16) natur.push(6, lx, y - 0.04, lz, h3(x, 36, z) * 6.283, 0.2 + h3(x, 96, z) * 0.4, Math.floor(h3(x, 97, z) * 6), 0);
   }
   if (GLATT.an && stufe >= 3) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) { // Ufer: Schilf und Kiesel an Land und im flachen Wasser, nur Darstellung
     const s = S(x, z); if (!s || (s.a !== 'gras' && s.a !== 'w')) continue;

@@ -43,6 +43,17 @@ export function pfadX(z: number): number {
   const z0 = B.z + 13, t = clamp01((z - z0) / 30);
   return B.x + Math.round((msin((z - z0) * 0.05) * 12 + (msin(z * 0.03) - msin(z0 * 0.03)) * 10) * t);
 }
+/** Mitte des Pfads ohne Rundung (nur Darstellung) */
+export function pfadMitte(z: number): number {
+  const z0 = B.z + 13, t = clamp01((z - z0) / 30);
+  return B.x + (msin((z - z0) * 0.05) * 12 + (msin(z * 0.03) - msin(z0 * 0.03)) * 10) * t;
+}
+/** Abstand zum Rand des Wegs: < 0 auf dem Weg, > 0 daneben; Breite schwankt (nur Darstellung). Die Rechnung bleibt bei amPfad(). Ergibt 99 außerhalb des Wegs. */
+export function pfadRand(x: number, z: number): number {
+  if (z <= B.z + 10 || z >= RISS.z + 3) return 99;
+  const breite = 1.7 + 0.55 * (noise(z * 0.12, 3.1, SEED + 80) - 0.5) * 2 + 0.25 * (noise(z * 0.4, 7.7, SEED + 81) - 0.5) * 2;
+  return Math.abs(x - pfadMitte(z)) - breite;
+}
 export function amPfad(x: number, z: number, w: number): boolean { return z > B.z + 11 && z < RISS.z + 2 && Math.abs(x - pfadX(z)) <= w; }
 
 function rohBerechnen(x: number, z: number) {
@@ -154,7 +165,8 @@ export function eckeHoehe(i: number, j: number): number {
   let s = 0, w = 0, frei = true;
   for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) { const t = oben(i - 2 + a, j - 2 + b); if (t < -900) continue; const g = GW[a] * GW[b]; s += t * g; w += g; if (a > 0 && a < 3 && b > 0 && b < 3) { const r = roh(i - 2 + a, j - 2 + b); if (r && (r.a === 'w' || r.a === 'l' || (HOEHEN.size && HOEHEN.has(hk(i - 2 + a, j - 2 + b))))) frei = false; } }
   let v = w > 0 ? s / w : 6;
-  if (frei) v += relief(i, j); // sanfte Hügel und Rücken nur in der Darstellung, nicht an Becken, Pfad, Feste und geebneten Stellen
+  if (frei) v += relief(i, j);
+  { const pr = pfadRand(i, j); if (pr < 0.8) v -= 0.13 * clamp01((0.8 - pr) / 1.6); } // Weg liegt etwas tiefer, Ränder laufen sanft aus // sanfte Hügel und Rücken nur in der Darstellung, nicht an Becken, Pfad, Feste und geebneten Stellen
   if (eckenCache.size > 250000) eckenCache.clear();
   eckenCache.set(k, v); return v;
 }
