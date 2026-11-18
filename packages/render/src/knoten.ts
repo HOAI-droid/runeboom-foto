@@ -149,9 +149,9 @@ class NachbearbeitungGPU implements Post {
   constructor(private renderer: THREE.WebGPURenderer, scene: THREE.Scene, camera: THREE.Camera, private tiltWert: number) {
     this.uStaerke.value = tiltWert;
     const szene = pass(scene, camera), farbe = szene.getTextureNode('output');
-    this.bl = bloom(farbe, 0.3, 0.55, 1.0);
+    this.bl = bloom(farbe, 0.3, 0.75, 0.85);
     const st = this.uStaerke;
-    const tiltR = (q: N) => smoothstep(0.45, 1, abs(q.y.sub(0.5)).mul(2)).mul(st).mul(screenSize.y).div(300);
+    const tiltR = (q: N) => smoothstep(0.22, 1, abs(q.y.sub(0.5)).mul(2)).mul(st).mul(screenSize.y).div(200);
     const blur = (tex: N, q: N, schritt: N) => {
       const c = vec3(0).toVar(); let ws = 0;
       for (let i = -4; i <= 4; i++) { const w = Math.exp(-(i * i) / 6); c.addAssign(tex.sample(q.add(schritt.mul(i))).rgb.mul(w)); ws += w; }
@@ -163,11 +163,12 @@ class NachbearbeitungGPU implements Post {
     this.pipe = new THREE.RenderPipeline(renderer, Fn(() => {
       const q = uv(), r = tiltR(q);
       const c = vec3(select(r.lessThan(0.05), waag.sample(q).rgb, blur(waag, q, vec2(0, r).div(screenSize)))).toVar();
+      c.assign(pow(max(c, 0).div(0.18), vec3(1.14)).mul(0.18)); // Kontrast um das mittlere Grau
       const l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       c.assign(mix(c, c.mul(tint), smoothstep(0.3, 1, l).mul(0.35)));
-      c.assign(mix(c, c.mul(vec3(0.85, 0.9, 1.1)), smoothstep(0, 0.4, l).oneMinus().mul(0.3)));
-      c.assign(mix(vec3(l), c, 1.12));
-      const d = q.sub(0.5); c.mulAssign(dot(d, d).mul(-0.55).add(1));
+      c.assign(mix(c, c.mul(vec3(0.78, 0.92, 1.16)), smoothstep(0, 0.45, l).oneMinus().mul(0.5)));
+      c.assign(mix(vec3(l), c, 1.22));
+      const d = q.sub(0.5); c.mulAssign(dot(d, d).mul(-0.85).add(1));
       return vec4(max(c, 0), 1);
     })());
   }

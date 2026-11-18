@@ -35,7 +35,7 @@ const aktiveDarstellung = einst.darstellung;
 const gpuWeg = () => aktiverWeg;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, 16 / 9, 0.5, 4000);
-const licht = new Beleuchtung(scene, 60);
+const licht = new Beleuchtung(scene, 95);
 const post = FABRIK.post(renderer, scene, camera, 0.5);
 const controls = new MapControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.08; controls.screenSpacePanning = false;

@@ -209,7 +209,7 @@ export function becken(zellen: Float32Array, mat: THREE.Material): THREE.Mesh {
 
 // ================= Tag und Nacht =================
 export interface Stimmung { top: string; bot: string; fog: string; sun: string; sunI: number; sunP: [number, number, number]; hemiS: string; hemiG: string; hemiI: number; exp: number; glow: number; lamp: number; tint: string; bloom: number; wasser: [string, string, string]; nebel: string; dunst: number }
-export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffbe6e', sunI: 4.2, sunP: [-50, 38, 34], hemiS: '#b4c8f0', hemiG: '#7a5530', hemiI: 1.05, exp: 1.0, glow: 0.62, lamp: 0.3, tint: '#ffd9a8', bloom: 0.32, wasser: ['#1f5a6e', '#4fa3b3', '#ffe2b0'], nebel: '#f8e2bc', dunst: 0.5 };
+export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffbe6e', sunI: 5.4, sunP: [-50, 34, 34], hemiS: '#8fa8dc', hemiG: '#5a3e22', hemiI: 0.62, exp: 1.08, glow: 0.62, lamp: 0.3, tint: '#ffd2a0', bloom: 0.5, wasser: ['#1f5a6e', '#4fa3b3', '#ffe2b0'], nebel: '#f8e2bc', dunst: 0.5 };
 export const NACHT: Stimmung = { top: '#060b1e', bot: '#24386a', fog: '#1b2a52', sun: '#9db4ff', sunI: 1.7, sunP: [44, 58, -24], hemiS: '#5a73b8', hemiG: '#241c3c', hemiI: 0.85, exp: 1.25, glow: 0.7, lamp: 0.8, tint: '#c8d6ff', bloom: 0.28, wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#55607e', dunst: 0.16 };
 const c1 = new THREE.Color(), c2 = new THREE.Color();
 const mixC = (a: string, b: string, t: number, out: THREE.Color) => out.copy(c1.set(a)).lerp(c2.set(b), t);
@@ -253,7 +253,7 @@ export class Lichtstrahlen {
   }
   /** sonne: Einheitsvektor zur Sonne; nacht 0…1 */
   update(ziel: THREE.Vector3, sonne: THREE.Vector3, nacht: number, zeit: number): void {
-    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.18 + nacht * 0.04;
+    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.3 + nacht * 0.05;
     const x = new THREE.Vector3(-sonne.z, 0, sonne.x).normalize(), z = new THREE.Vector3().crossVectors(x, sonne), m = new THREE.Matrix4().makeBasis(x, sonne, z), q = new THREE.Quaternion().setFromRotationMatrix(m);
     const farbe = new THREE.Color().set('#ffe0aa').lerp(new THREE.Color('#9db4ff'), Math.min(1, nacht * 1.4));
     for (let a = -2; a < 2; a++) for (let b = -2; b < 2; b++) {
@@ -261,7 +261,7 @@ export class Lichtstrahlen {
       const px = (gx + 0.15 + 0.7 * h2) * Z, pz = (gz + 0.15 + 0.7 * h3) * Z, d = Math.hypot(px - ziel.x, pz - ziel.z), f = 1 - Math.min(1, Math.max(0, (d - 50) / 45));
       const o = h1 < 0.6 ? st * f * (0.7 + 0.3 * Math.sin(zeit * 0.22 + h5 * 20)) * (0.6 + 0.8 * h4) : 0;
       slot.mat.opacity = o; slot.mat.color.copy(farbe); slot.grp.visible = o > 0.002; if (!slot.grp.visible) continue;
-      const breite = 5 + 9 * h4, laenge = 60 + 30 * h5, y0 = bodenHoehe(px, pz) - 4;
+      const breite = 9 + 16 * h4, laenge = 70 + 40 * h5, y0 = bodenHoehe(px, pz) - 4;
       slot.grp.position.set(px + sonne.x * (laenge / 2 - 4), y0 + sonne.y * (laenge / 2 - 4), pz + sonne.z * (laenge / 2 - 4)); slot.grp.quaternion.copy(q);
       slot.grp.children[0].scale.set(breite, laenge, 1); slot.grp.children[1].scale.set(breite, laenge, 1);
     }
@@ -277,9 +277,9 @@ export class Beleuchtung {
   werte = { exp: 1, bloom: 0.3, tint: new THREE.Color(), nebel: new THREE.Color(), dunst: 0 };
   strahlen = new Lichtstrahlen(); private nachtD = 0;
   constructor(scene: THREE.Scene, ausdehnung = 60) {
-    const s = this.sun; s.castShadow = true; s.shadow.mapSize.set(2048, 2048);
+    const s = this.sun; s.castShadow = true; s.shadow.mapSize.set(3072, 3072);
     Object.assign(s.shadow.camera, { left: -ausdehnung, right: ausdehnung, top: ausdehnung, bottom: -ausdehnung, near: 80, far: 240 }); // nur ±80 m um den Blickpunkt entlang des Lichts: weniger Kacheln im Schattenbild
-    s.shadow.bias = -0.0005; s.shadow.normalBias = 0.03; s.shadow.radius = 4;
+    s.shadow.bias = -0.0005; s.shadow.normalBias = 0.04; s.shadow.radius = 5;
     this.front.position.set(30, 40, 60);
     scene.add(s, s.target, this.hemi, this.front, this.himmel.mesh, this.strahlen.gruppe);
     scene.fog = this.fog;
@@ -292,7 +292,7 @@ export class Beleuchtung {
     mixC(A.sun, N.sun, d, this.sun.color); this.sun.intensity = A.sunI + (N.sunI - A.sunI) * d;
     this.richtung.set(A.sunP[0] + (N.sunP[0] - A.sunP[0]) * d, A.sunP[1] + (N.sunP[1] - A.sunP[1]) * d, A.sunP[2] + (N.sunP[2] - A.sunP[2]) * d).normalize();
     mixC(A.hemiS, N.hemiS, d, this.hemi.color); mixC(A.hemiG, N.hemiG, d, this.hemi.groundColor); this.hemi.intensity = A.hemiI + (N.hemiI - A.hemiI) * d;
-    this.front.intensity = 0.35 - 0.23 * d;
+    this.front.intensity = 0.12 - 0.06 * d;
     GLOW.color.setScalar(A.glow + (N.glow - A.glow) * d); LAMP.color.setScalar(A.lamp + (N.lamp - A.lamp) * d);
     mixC(A.wasser[0], N.wasser[0], d, WASSER_U.uTief.value); mixC(A.wasser[1], N.wasser[1], d, WASSER_U.uHell.value); mixC(A.wasser[2], N.wasser[2], d, WASSER_U.uFunkeln.value);
     LICHT_U.uNacht.value = Math.max(0, (d - 0.25) / 0.75);
@@ -309,7 +309,7 @@ export class Beleuchtung {
 // ================= Nachbearbeitung wie im Grafik-Zweig von overBOOM =================
 // Ablauf: Szene → Bloom → Tilt-Shift waagrecht → Abschluss (Tilt-Shift senkrecht, Farbstimmung, Vignette, Tonwerte, sRGB) in einem Durchgang
 const QUAD_VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-const TILT_GLSL = `float tiltR(vec2 uv, float st, vec2 res) { return smoothstep(0.45, 1.0, abs(uv.y - 0.5) * 2.0) * st * res.y / 300.0; }
+const TILT_GLSL = `float tiltR(vec2 uv, float st, vec2 res) { return smoothstep(0.22, 1.0, abs(uv.y - 0.5) * 2.0) * st * res.y / 200.0; }
   vec3 tiltBlur(sampler2D t, vec2 uv, vec2 st) { vec3 c = vec3(0.0); float ws = 0.0;
     for (int i = -4; i <= 4; i++) { float w = exp(-float(i * i) / 6.0); c += texture2D(t, uv + st * float(i)).rgb * w; ws += w; } return c / ws; }`;
 const TILT = () => new THREE.ShaderMaterial({
@@ -326,6 +326,7 @@ const ABSCHLUSS = () => new THREE.ShaderMaterial({
     vec3 aces(vec3 c) {
       const mat3 I = mat3(vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
       const mat3 O = mat3(vec3(1.60475, -0.10208, -0.00327), vec3(-0.53108, 1.10813, -0.07276), vec3(-0.07367, -0.00605, 1.07602));
+      c = 0.18 * pow(max(c, vec3(0.0)) / 0.18, vec3(1.14)); // Kontrast um das mittlere Grau: tiefere Schatten, leuchtendere Lichter
       c *= uBelichtung / 0.6; return clamp(O * rrt(I * c), 0.0, 1.0); }
     vec3 srgb(vec3 c) { return mix(pow(c, vec3(0.41666)) * 1.055 - 0.055, c * 12.92, vec3(lessThanEqual(c, vec3(0.0031308)))); }
     void main(){
@@ -333,8 +334,8 @@ const ABSCHLUSS = () => new THREE.ShaderMaterial({
       vec3 c = r < 0.05 ? texture2D(tDiffuse, vUv).rgb : tiltBlur(tDiffuse, vUv, vec2(0.0, r) / uRes);
       float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       c = mix(c, c * uTint, smoothstep(0.3, 1.0, l) * 0.35);
-      c = mix(c, c * vec3(0.85, 0.9, 1.1), (1.0 - smoothstep(0.0, 0.4, l)) * 0.3);
-      c = mix(vec3(l), c, 1.12); vec2 q = vUv - 0.5; c *= 1.0 - dot(q, q) * 0.55;
+      c = mix(c, c * vec3(0.78, 0.92, 1.16), (1.0 - smoothstep(0.0, 0.45, l)) * 0.5);
+      c = mix(vec3(l), c, 1.22); vec2 q = vUv - 0.5; c *= 1.0 - dot(q, q) * 0.85;
       gl_FragColor = vec4(srgb(aces(max(c, 0.0))), 1.0); }`
 });
 export class Nachbearbeitung implements Post {
@@ -343,7 +344,7 @@ export class Nachbearbeitung implements Post {
     this.tiltStaerke = tilt;
     this.comp = new EffectComposer(renderer);
     this.comp.addPass(new RenderPass(scene, camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(16, 16), 0.3, 0.55, 1.0); this.comp.addPass(this.bloom);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(16, 16), 0.3, 0.75, 0.85); this.comp.addPass(this.bloom);
     this.tiltH = new ShaderPass(TILT()); this.tiltH.uniforms.uStaerke.value = tilt; this.comp.addPass(this.tiltH);
     this.ende = new ShaderPass(ABSCHLUSS()); this.ende.uniforms.uStaerke.value = tilt; this.comp.addPass(this.ende);
   }

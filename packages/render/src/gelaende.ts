@@ -65,7 +65,7 @@ function randWand(p: Float32Array, e0: number, e1: number, dx: number, dz: numbe
 }
 
 /** Boden einer Kachel. fein: 2 × 2 Eckpunkte je Block mit feinem Farbrauschen und leichten Unebenheiten, sonst 1 × 1. */
-export function bodenNetz(cx: number, cz: number, fein: boolean, S: (x: number, z: number) => Spalte | null): BodenNetz {
+export function bodenNetz(cx: number, cz: number, fein: boolean, S: (x: number, z: number) => Spalte | null, quellen: number[] = []): BodenNetz {
   const ox = cx * CH, oz = cz * CH, R = fein ? 2 : 1, M = CH * R, V = M + 1, sd = seed();
   const p = new Float32Array(V * V * 3), nn = new Float32Array(V * V * 3), c = new Float32Array(V * V * 3), uvk = new Float32Array(V * V * 2);
   for (let a = 0; a < V; a++) for (let b = 0; b < V; b++) {
@@ -73,7 +73,11 @@ export function bodenNetz(cx: number, cz: number, fein: boolean, S: (x: number, 
     let h = bodenHoehe(wx, wz);
     const innen = a > 0 && a < M && b > 0 && b < M;
     if (fein && innen) h += (fbm(wx, wz, 0.9, sd + 41) - 0.5) * 0.16; // kleine Unebenheiten (nie am Kachelrand, dort muss alles passen)
-    const nm = bodenNormale(wx, wz), col = farbeAn(wx, wz, h, nm[1], S, sd).map((q) => q * 1.7), o = (a * V + b) * 3;
+    const nm = bodenNormale(wx, wz), o = (a * V + b) * 3;
+    // eingebrannte Verdunkelung: unter Kronen und Felsen, in Mulden (Krümmung der Höhe)
+    let occ = 0; for (let q = 0; q < quellen.length; q += 4) { const d = Math.hypot(wx - quellen[q], wz - quellen[q + 1]), r = quellen[q + 2]; if (d < r) { const t = 1 - d / r; occ += quellen[q + 3] * t * t; } }
+    const mulde = Math.max(0, (bodenHoehe(wx - 1, wz) + bodenHoehe(wx + 1, wz) + bodenHoehe(wx, wz - 1) + bodenHoehe(wx, wz + 1)) / 4 - bodenHoehe(wx, wz));
+    const schatten = (1 - Math.min(0.62, occ)) * (1 - Math.min(0.3, mulde * 0.9)), col = farbeAn(wx, wz, h, nm[1], S, sd).map((q, k) => q * 1.7 * schatten * (k === 2 ? 1.0 + (1 - schatten) * 0.25 : k === 0 ? 1 - (1 - schatten) * 0.1 : 1));
     uvk[(a * V + b) * 2] = wx / 6; uvk[(a * V + b) * 2 + 1] = wz / 6; p[o] = lx; p[o + 1] = h; p[o + 2] = lz; nn[o] = nm[0]; nn[o + 1] = nm[1]; nn[o + 2] = nm[2]; c[o] = col[0]; c[o + 1] = col[1]; c[o + 2] = col[2];
   }
   const idx: number[] = [], skp: number[] = [], skn: number[] = [], skc: number[] = [], ski: number[] = [];
@@ -147,4 +151,15 @@ export function uebersichtNetz(N: number, Z: number, farbe: Uint8Array, hoch: Fl
   pp.set(p); pp.set(skp, p.length); n2.set(nn); n2.set(skn, nn.length); cc.set(c); cc.set(skc, c.length); ii.set(idx); for (let k = 0; k < ski.length; k++) ii[idx.length + k] = ski[k] + vo;
   const uu = new Float32Array(uvk.length + (skp.length / 3) * 2); uu.set(uvk);
   return { p: pp, n: n2, c: cc, i: ii, uv: uu };
+}
+
+/** Verdunkelnde Dinge um eine Kachel (Bäume, Büsche, Felsen, auch aus dem Rand ringsum): je 4 Werte x, z, Radius, Stärke */
+export function okkluder(cx: number, cz: number, S: (x: number, z: number) => Spalte | null, deko: (x: number, z: number, s: Spalte | null) => { art: string; typ?: string } | null, h3: (x: number, y: number, z: number) => number): number[] {
+  const ox = cx * CH, oz = cz * CH, aus: number[] = [];
+  for (let x = ox - 5; x < ox + CH + 5; x++) for (let z = oz - 5; z < oz + CH + 5; z++) {
+    if (h3(x, 9, z) > 0.07 && h3(x, 11, z) > 0.05) continue;
+    const s = S(x, z); if (!s) continue; const d = deko(x, z, s); if (!d || d.art === 'gras') continue;
+    if (d.art === 'fels') aus.push(x + 0.5, z + 0.5, 2.1, 0.45); else if (d.typ === 'tanne') aus.push(x + 0.5, z + 0.5, 3.4, 0.7); else if (d.typ === 'busch') aus.push(x + 0.5, z + 0.5, 1.9, 0.4); else if (d.typ === 'tot') aus.push(x + 0.5, z + 0.5, 1.5, 0.2); else aus.push(x + 0.5, z + 0.5, 4.3, 0.62);
+  }
+  return aus;
 }

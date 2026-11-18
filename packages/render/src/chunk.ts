@@ -2,7 +2,7 @@ import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, bodenHoehe, fbm, frei, 
 import { Grid, meshVoxels, srgbLin, type MeshDaten, type Voxel } from './voxel.ts';
 import { baum, fels, kristalle, riss, stumpf, setzling } from './modelle.ts';
 import { GLATT } from './schalter.ts';
-import { bodenNetz, beckenZellen, uebersichtNetz, type BodenNetz } from './gelaende.ts';
+import { bodenNetz, beckenZellen, uebersichtNetz, okkluder, type BodenNetz } from './gelaende.ts';
 
 const NAT_ART: Record<string, number> = { laub: 0, tanne: 1, herbst: 2, leucht: 3, busch: 4, tot: 5 };
 
@@ -35,7 +35,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     if (innen && s.a === 'l') lava.push(x, s.h + 1.62, z);
   }
   let boden: BodenNetz | null = null;
-  if (GLATT.an) { boden = bodenNetz(cx, cz, stufe >= 3, S); const b = beckenZellen(cx, cz, S); wasser.push(...b.wasser); lava.push(...b.lava); }
+  if (GLATT.an) { boden = bodenNetz(cx, cz, stufe >= 3, S, okkluder(cx, cz, S, deko as never, h3)); const b = beckenZellen(cx, cz, S); wasser.push(...b.wasser); lava.push(...b.lava); }
   const fein = (x: number, z: number): [number, number, number] => { const s = S(x, z); return [2 * x + 1, 2 * ((s ? s.h : 6) + 1), 2 * z + 1]; };
   const r = rng((cx * 7919 + cz * 104729 + seed()) >>> 0);
   if (stufe >= 2) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) {
@@ -70,6 +70,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     const wald = fbm(x, z, 0.045, seed() + 20), jx = h3(x, 34, z), jz = h3(x, 35, z), lx = x - ox + 0.15 + jx * 0.7, lz = z - oz + 0.15 + jz * 0.7, y = bodenHoehe(x + 0.15 + jx * 0.7, z + 0.15 + jz * 0.7), h = h3(x, 31, z);
     if (h < (wald > 0.52 ? 0.14 : 0.03)) natur.push(9, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 2), 0);
     else if (h3(x, 32, z) < 0.012) natur.push(10, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.5, Math.floor(h3(x, 38, z) * 4), 0);
+    else if (h3(x, 48, z) < 0.012) { const g = 0.7 + h3(x, 49, z) * 1.0; natur.push(6, lx, y, lz, h3(x, 36, z) * 6.283, g, Math.floor(h3(x, 38, z) * 6), 0); for (let q = 0; q < 3; q++) { const fx = lx + (h3(x, 50 + q, z) - 0.5) * 2.4 * g, fz = lz + (h3(x, 53 + q, z) - 0.5) * 2.4 * g; natur.push(9, fx, bodenHoehe(ox + fx, oz + fz) - 0.05, fz, h3(x, 56 + q, z) * 6.283, 0.9 + h3(x, 59 + q, z) * 0.6, q, 0); } }
     else if (h3(x, 33, z) < 0.3) natur.push(7, lx, y, lz, h3(x, 36, z) * 6.283, 0.9 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 3), 0);
   }
   if (GLATT.an && stufe >= 3) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) { // Ufer: Schilf und Kiesel an Land und im flachen Wasser, nur Darstellung

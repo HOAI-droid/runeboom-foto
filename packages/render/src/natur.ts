@@ -77,11 +77,11 @@ function laubTex(): THREE.CanvasTexture {
   };
   const R = 112, mx = 120, my = 128;
   for (let pass = 0; pass < 2; pass++) {
-    const zahl = pass === 0 ? 150 : 330;
+    const zahl = pass === 0 ? 240 : 560;
     for (let i = 0; i < zahl; i++) {
       const a = rz(i, pass, 1, 31) * 6.2832, r = Math.sqrt(rz(i, pass, 2, 31)) * R * (pass === 0 ? 0.88 : 1) * (0.85 + 0.15 * Math.sin(a * 5 + 1.3)), x = mx + Math.cos(a) * r * 1.05, y = my + Math.sin(a) * r * 0.92 + (Math.sin(a) > 0.2 ? -4 : 0);
       const v = pass === 0 ? 105 + 70 * rz(i, pass, 3, 31) : 150 + 105 * Math.pow(rz(i, pass, 3, 31), 0.7);
-      blatt(x, y, 5 + 4 * rz(i, pass, 4, 31), 12 + 11 * rz(i, pass, 5, 31), a + 1.57 + (rz(i, pass, 6, 31) - 0.5) * 1.6, v);
+      blatt(x, y, 3.2 + 3 * rz(i, pass, 4, 31), 8 + 8 * rz(i, pass, 5, 31), a + 1.57 + (rz(i, pass, 6, 31) - 0.5) * 1.6, v);
     }
   }
   c.fillStyle = '#ffffff'; c.fillRect(n - 16, 0, 16, n); // deckender Streifen für Stämme, Kerne und Steine
@@ -115,25 +115,34 @@ function karten(zentrum: [number, number, number], rx: number, ry: number, anzah
 }
 
 /**
- * Laubbaum, prozedural nach Variante: Stammhöhe und Neigung, 1–3 Kronenlappen mit eigenen Maßen, Farbverschiebung, Äste zu den Lappen,
- * dunkler Kern und Krone aus vielen Laubkarten (fein) bzw. weniger (mittlere Entfernung)
+ * Laubbaum mit echter Verzweigung: Stamm, 3–6 Hauptäste mit Gabelung, an den Astspitzen Laubbüschel aus vielen kleinen Karten.
+ * Die Silhouette entsteht aus den Ästen (unregelmäßig, mit Lücken), nicht aus einer Kugel. Je Variante andere Höhe, Neigung, Astzahl und Winkel.
  */
 function laubbaum(v: number, farben: [string, string, string], beeren = false, fein = true, birke = false): THREE.BufferGeometry {
   const R = (i: number) => rz(i, v, 3, 77), s = v * 7.3 + 1, t: THREE.BufferGeometry[] = [], RI = birke ? ['#4a443a', '#f1ecde'] : ['#3a2a1d', '#6a5038'];
   const verschiebung = (R(7) - 0.5) * 0.09, hell = (R(8) - 0.5) * 0.12, [d, m, h] = farben.map((c) => '#' + new THREE.Color(c).offsetHSL(verschiebung, 0, hell).getHexString()) as [string, string, string];
-  const th = (birke ? 4.2 : 3.0) + 2.6 * R(1), neigung = (R(5) - 0.5) * 1.4, lappen = 1 + Math.floor(R(4) * 2.99), breite = 0.75 + 0.6 * R(2), hoch = 0.75 + 0.6 * R(3);
-  t.push(ast(0, -0.3, 0, neigung, th + 0.3, neigung * 0.4, (birke ? 0.38 : 0.5) + 0.25 * R(6), 0.2, RI, fein ? 10 : 6));
-  const gesamt = fein ? 210 : 52;
-  for (let l = 0; l < lappen; l++) {
-    const rx = (l === 0 ? 3.3 : 2.2) * breite * (0.85 + 0.3 * rz(l, v, 1, 78)), ry = (l === 0 ? 2.8 : 1.9) * hoch * (0.85 + 0.3 * rz(l, v, 2, 78));
-    const a = l * 2.6 + R(9) * 6, ox = l === 0 ? neigung : Math.cos(a) * rx * 0.85 + neigung, oz = l === 0 ? neigung * 0.4 : Math.sin(a) * rx * 0.85, cy = th + ry * 0.85 + (l === 0 ? 0 : (rz(l, v, 3, 78) - 0.3) * 1.2);
-    const farbe = kronenFarbe(cy, ry, rx, s + l, d, m, h), kern = new THREE.Color(m).multiplyScalar(0.55);
-    t.push(buschel(rx * 0.5, ry * 0.45, rx * 0.5, ox, cy - 0.2, oz, s + l, (_x, py) => kern.clone().multiplyScalar(0.6 + 0.5 * Math.min(1, Math.max(0, (py - cy + ry) / (2 * ry)))), 1, 0.3));
-    t.push(karten([ox, cy, oz], rx, ry, Math.round(gesamt * (l === 0 ? 1 : 0.6) / (lappen > 1 ? 1.3 : 1)), (fein ? 2.5 : 3.5) * (0.85 + 0.3 * rz(l, v, 4, 78)), s + l * 3.1, farbe, [0.62, 1.05]));
-    t.push(ast(neigung * 0.4, th - 0.9, neigung * 0.15, ox * 0.8, cy - ry * 0.4, oz * 0.8, 0.22, 0.06, RI, 6));
-    if (beeren) for (let i = 0; i < 6; i++) { const aa = rz(i, l, v, 5) * 6.28, y = cy - 1 + rz(i, 2, v, 5) * 3, r = rx * 0.78 + rz(i, 3, v, 5) * 0.7; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(ox + Math.cos(aa) * r, y, oz + Math.sin(aa) * r), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
+  const th = (birke ? 5.0 : 3.4) + 2.8 * R(1), neigung = (R(5) - 0.5) * 1.6, aeste = 3 + Math.floor(R(4) * 3.99), hoehe = 0.8 + 0.5 * R(3), breite = 0.8 + 0.5 * R(2);
+  t.push(ast(0, -0.3, 0, neigung, th + 0.3, neigung * 0.4, (birke ? 0.36 : 0.5) + 0.22 * R(6), birke ? 0.14 : 0.2, RI, fein ? 10 : 6));
+  const spitzen: [number, number, number, number][] = []; // x, y, z, Größe des Büschels
+  for (let k = 0; k < aeste; k++) {
+    const az = k * (6.283 / aeste) + R(9) * 6 + rz(k, v, 1, 90) * 0.7, el = 0.45 + 0.65 * rz(k, v, 2, 90), len = (2.6 + 2.2 * rz(k, v, 3, 90)) * breite, y0 = th * (0.62 + 0.38 * rz(k, v, 4, 90));
+    const sx = neigung * (y0 / th), sz = neigung * 0.4 * (y0 / th), dx = Math.cos(az) * Math.cos(el), dy = Math.sin(el), dz = Math.sin(az) * Math.cos(el);
+    const fx = sx + dx * len * 0.6, fy = y0 + dy * len * 0.6 * hoehe, fz = sz + dz * len * 0.6; // Gabelung
+    t.push(ast(sx, y0, sz, fx, fy, fz, 0.2, 0.1, RI, 6));
+    const zweige = 2 + (rz(k, v, 5, 90) > 0.5 ? 1 : 0);
+    for (let g = 0; g < zweige; g++) {
+      const w = az + (g - (zweige - 1) / 2) * (0.7 + 0.4 * rz(k, g, 6, 90)), e2 = el + (rz(k, g, 7, 90) - 0.4) * 0.6, l2 = len * (0.5 + 0.35 * rz(k, g, 8, 90)), ex = fx + Math.cos(w) * Math.cos(e2) * l2, ey = fy + Math.sin(e2) * l2 * hoehe + 0.3, ez = fz + Math.sin(w) * Math.cos(e2) * l2;
+      t.push(ast(fx, fy, fz, ex, ey, ez, 0.1, 0.04, RI, 5)); spitzen.push([ex, ey, ez, 1.1 + 0.7 * rz(k, g, 9, 90)]);
+    }
+    spitzen.push([fx, fy + 0.4, fz, 0.9]);
   }
-  if (fein) for (let k = 0; k < 3 + Math.floor(R(10) * 3); k++) { const aa = k * 2.1 + R(11) * 6, dx = Math.cos(aa), dz = Math.sin(aa); t.push(ast(dx * 0.25, 0.15, dz * 0.25, dx * (1.3 + R(12) * 0.8), -0.3, dz * (1.3 + R(12) * 0.8), 0.24, 0.08, ['#3a2a1d', '#6a5038'], 5)); } // Wurzelanläufe
+  spitzen.push([neigung, th + 1.4 * hoehe, neigung * 0.4, 1.3]); // Wipfel
+  const cy = th + 2.2, farbe = kronenFarbe(cy, 3.4 * hoehe, 3.6 * breite, s, d, m, h), kern = new THREE.Color(m).multiplyScalar(0.5);
+  t.push(buschel(1.1 * breite, 0.9, 1.1 * breite, neigung, th + 1.5, neigung * 0.4, s, () => kern, 1, 0.3));
+  const pro = Math.round((fein ? 460 : 80) / spitzen.length);
+  spitzen.forEach(([x, y, z, g], i) => t.push(karten([x, y, z], 1.5 * g, 1.15 * g, Math.max(5, Math.round(pro * (0.7 + 0.5 * g))), (fein ? 1.05 : 2.0) * (0.85 + 0.3 * rz(i, v, 4, 91)), s + i * 1.7, farbe, [0.35, 1.0])));
+  if (beeren) for (let i = 0; i < 8; i++) { const [x, y, z] = spitzen[i % spitzen.length], aa = rz(i, 1, v, 5) * 6.28; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(x + Math.cos(aa) * 1.2, y + (rz(i, 2, v, 5) - 0.5) * 1.5, z + Math.sin(aa) * 1.2), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
+  if (fein) for (let k = 0; k < 3 + Math.floor(R(10) * 3); k++) { const aa = k * 2.1 + R(11) * 6, dx = Math.cos(aa), dz = Math.sin(aa); t.push(ast(dx * 0.25, 0.15, dz * 0.25, dx * (1.3 + R(12) * 0.8), -0.3, dz * (1.3 + R(12) * 0.8), 0.24, 0.08, ['#3a2a1d', '#6a5038'], 5)); }
   return vereint(t, true);
 }
 // ---------- Nadeltextur: ein Zweigfächer mit vielen Nadeln (Grauwerte, Alpha-Schnitt); rechts ein deckender Streifen ----------
