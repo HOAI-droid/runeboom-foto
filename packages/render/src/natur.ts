@@ -129,8 +129,8 @@ function masseTex(): THREE.CanvasTexture {
   const wert = (x: number, y: number, per: number, sd: number) => { const fx = x / n * per, fy = y / n * per, xi = Math.floor(fx), yi = Math.floor(fy), tx = fx - xi, ty = fy - yi, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty), h = (i: number, j: number) => { let q = (Math.imul(((i % per) + per) % per, 374761393) + Math.imul(((j % per) + per) % per, 668265263) + Math.imul(sd, 1442695041)) | 0; q = Math.imul(q ^ (q >>> 13), 1274126177); q = Math.imul(q ^ (q >>> 16), 2246822519); return ((q ^ (q >>> 15)) >>> 0) / 4294967296; };
     return h(xi, yi) * (1 - sx) * (1 - sy) + h(xi + 1, yi) * sx * (1 - sy) + h(xi, yi + 1) * (1 - sx) * sy + h(xi + 1, yi + 1) * sx * sy; };
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const k1 = wert(x, y, 4, 1), k2 = wert(x, y, 8, 2), f1 = wert(x, y, 20, 3), f2 = wert(x, y, 44, 4), f3 = wert(x, y, 90, 5);
-    const dichte = 0.5 * k1 + 0.3 * k2 + 0.34 * f1 + 0.22 * f2 + 0.14 * f3 - 0.2, a = dichte > 0.46 ? 255 : 0;
+    const k1 = wert(x, y, 4, 1), k2 = wert(x, y, 8, 2), f1 = wert(x, y, 12, 3), f2 = wert(x, y, 24, 4), f3 = wert(x, y, 32, 5);
+    const dichte = 0.5 * k1 + 0.3 * k2 + 0.36 * f1 + 0.24 * f2 + 0.16 * f3 - 0.24, a = dichte > 0.46 ? 255 : 0;
     const klumpen = 0.35 + 0.65 * Math.min(1, Math.max(0, k2 * 0.7 + k1 * 0.3)), blatt = 0.65 + 0.5 * f2 + 0.3 * f3, rand = Math.min(1, Math.max(0, (dichte - 0.46) * 7)); // am Rand der Flecken heller (Blattkanten im Licht)
     const g = Math.min(255, 255 * klumpen * blatt * (0.75 + 0.35 * rand)), o = (y * n + x) * 4; d[o] = g; d[o + 1] = g * 0.98; d[o + 2] = g * 0.9; d[o + 3] = a;
   }
