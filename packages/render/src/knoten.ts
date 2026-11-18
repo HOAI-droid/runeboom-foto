@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu';
 import {
   Fn, If, Discard, float, vec2, vec3, vec4, uniform, texture, attribute, varying, positionWorld, positionLocal, diffuseColor,
-  floor, fract, sin, dot, mix, smoothstep, step, abs, clamp, max, pow, length, exp, normalize, select, uv, pass, convertToTexture, screenSize, normalWorld
+  floor, fract, sin, dot, cameraPosition, mix, smoothstep, step, abs, clamp, max, pow, length, exp, normalize, select, uv, pass, convertToTexture, screenSize, normalWorld
 } from 'three/tsl';
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { WR } from '@runeboom/core';
@@ -50,13 +50,17 @@ const jahreszeit = (c0: N, n: N): N => {
 };
 
 // ---------- Materialien ----------
-function licht(p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5): THREE.Material {
+const uSonne = uniform(LICHT_U.uSonne.value).onFrameUpdate(() => LICHT_U.uSonne.value), uSonneC = uniform(LICHT_U.uSonneC.value).onFrameUpdate(() => LICHT_U.uSonneC.value);
+function licht(p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0): THREE.Material {
   const m = new THREE.MeshStandardNodeMaterial(p as any);
   // nach dem Zusammensetzen der Grundfarbe (Material, Ecken- und Instanzfarbe) die Jahreszeit anwenden
   const grund = (m as any).setupDiffuseColor.bind(m);
   (m as any).setupDiffuseColor = (b: unknown) => { grund(b); diffuseColor.assign(vec4(jahreszeit(diffuseColor.rgb, normalWorld), diffuseColor.a)); };
   const lm = lichtWert();
-  m.emissiveNode = diffuseColor.rgb.mul(uLichtFarbe).mul(lm.mul(lm)).mul(uNacht).mul(staerke);
+  const nachts = diffuseColor.rgb.mul(uLichtFarbe).mul(lm.mul(lm)).mul(uNacht).mul(staerke);
+  // Durchleuchten: Laub glüht, wenn man gegen die Sonne schaut (wie in licht() in grafik.ts)
+  const rueck = pow(clamp(dot(normalize(cameraPosition.sub(positionWorld)).negate(), uSonne), 0, 1), 2.2);
+  m.emissiveNode = durch > 0 ? nachts.add(diffuseColor.rgb.mul(uSonneC).mul(rueck).mul(durch)) : nachts;
   if (maske) { m.opacityNode = select(texture(maske, weltUV(positionWorld)).r.greaterThan(schwelle), float(0), float(1)); m.alphaTest = 0.5; }
   return m;
 }
@@ -67,7 +71,12 @@ function wasser(): THREE.Material {
   m.colorNode = Fn(() => {
     const p = positionWorld.xz, t = uZeit;
     const w = fbm(p.mul(0.7).add(vec2(t.mul(0.09), t.mul(0.05)))).add(fbm(p.mul(1.8).sub(vec2(t.mul(0.07), t.mul(-0.11)))).mul(0.5));
+    const wAn = (q: N) => fbm(q.mul(0.7).add(vec2(t.mul(0.09), t.mul(0.05)))).add(fbm(q.mul(1.8).sub(vec2(t.mul(0.07), t.mul(-0.11)))).mul(0.5));
+    const wx = wAn(p.add(vec2(0.07, 0))), wz = wAn(p.add(vec2(0, 0.07)));
+    const nw = normalize(vec3(w.sub(wx).mul(5), 1, w.sub(wz).mul(5))), V = normalize(cameraPosition.sub(positionWorld)), Rf = V.negate().sub(nw.mul(dot(nw, V.negate()).mul(2)));
+    const fr = pow(clamp(dot(V, nw), 0, 1).oneMinus(), 4), glanz = pow(clamp(dot(Rf, uSonne), 0, 1), 80);
     const c = mix(uTief, uHell, smoothstep(0.62, 1.12, w)).toVar();
+    c.assign(mix(c, uFunkeln.mul(0.55).add(uHell.mul(0.5)), fr.mul(0.6))); c.addAssign(uSonneC.mul(glanz).mul(2.5));
     const funk = step(0.99, h1(floor(positionWorld.xz.mul(14)).add(floor(t.mul(1.5)).mul(7.13))));
     c.addAssign(uFunkeln.mul(funk).mul(smoothstep(0.75, 1.05, w)).mul(0.9));
     const lm = lichtWert(); c.addAssign(uLichtFarbe.mul(lm.mul(lm)).mul(uNacht).mul(0.35));

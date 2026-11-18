@@ -27,7 +27,8 @@ const JAHR_GLSL = `vec3 jahreszeit(vec3 c, vec3 n) {
   float oben = smoothstep(0.55, 0.95, n.y);
   c = mix(c, vec3(0.86, 0.9, 0.96), oben * uWinter * 0.88);
   return c; }`;
-export const LICHT_U = { uLicht: { value: lichtTex }, uNacht: { value: 0 }, uLichtFarbe: { value: new THREE.Color('#ffb36a') } };
+/** uSonne: Einheitsvektor zur Sonne (bzw. zum Mond), uSonneC: Farbe × Stärke – für das Durchleuchten von Laub gegen das Licht */
+export const LICHT_U = { uLicht: { value: lichtTex }, uNacht: { value: 0 }, uLichtFarbe: { value: new THREE.Color('#ffb36a') }, uSonne: { value: new THREE.Vector3(0, 1, 0) }, uSonneC: { value: new THREE.Color('#ffbe6e') } };
 type Lichtquelle = { x: number; z: number; r: number; kegel?: number; geb?: { zielen: number } };
 const LK_FEST = new Uint8Array(LK * LK);
 let lkKegelAn = false;
@@ -57,19 +58,19 @@ export function lichtkarteSetzen(lichter: Lichtquelle[], fest = true, nacht = tr
   lichtTex.needsUpdate = true;
 }
 /** Material bekommt Licht aus der Lichtkarte, nachts */
-export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5): T {
+export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0): T {
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, LICHT_U);
     Object.assign(sh.uniforms, JAHR_U);
     sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n{ vec4 w4 = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nw4 = instanceMatrix * w4;\n#endif\nvWP = (modelMatrix * w4).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal); }');
-    sh.fragmentShader = 'uniform sampler2D uLicht; uniform float uNacht, uFruehling, uHerbst, uWinter; uniform vec3 uLichtFarbe; varying vec3 vWP; varying vec3 vWN;\n' + JAHR_GLSL + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = jahreszeit(diffuseColor.rgb, vWN);').replace('#include <emissivemap_fragment>',
-      `#include <emissivemap_fragment>\nfloat lmw = texture2D(uLicht, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r;\ntotalEmissiveRadiance += diffuseColor.rgb * uLichtFarbe * lmw * lmw * uNacht * ${staerke.toFixed(2)};`);
+    sh.fragmentShader = 'uniform sampler2D uLicht; uniform float uNacht, uFruehling, uHerbst, uWinter; uniform vec3 uLichtFarbe, uSonne, uSonneC; varying vec3 vWP; varying vec3 vWN;\n' + JAHR_GLSL + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = jahreszeit(diffuseColor.rgb, vWN);').replace('#include <emissivemap_fragment>',
+      `#include <emissivemap_fragment>\nfloat lmw = texture2D(uLicht, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r;\ntotalEmissiveRadiance += diffuseColor.rgb * uLichtFarbe * lmw * lmw * uNacht * ${staerke.toFixed(2)};${durch > 0 ? `\nfloat rueck = pow(clamp(dot(-normalize(cameraPosition - vWP), uSonne), 0.0, 1.0), 2.2); totalEmissiveRadiance += diffuseColor.rgb * uSonneC * rueck * ${durch.toFixed(2)};` : ''}`);
     if (maske) { // unter fertigen Kacheln ausblenden
       sh.uniforms.uMaske = { value: maske };
       sh.fragmentShader = 'uniform sampler2D uMaske;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `if (texture2D(uMaske, (vWP.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r > ${schwelle.toFixed(2)}) discard;\n#include <clipping_planes_fragment>`);
     }
   };
-  if (maske) mat.customProgramCacheKey = () => `lichtkarte-maske-${staerke}-${schwelle}`;
+  mat.customProgramCacheKey = () => `lichtkarte-${maske ? 'maske' : 'frei'}-${staerke}-${schwelle}-${durch}`;
   return mat;
 }
 
@@ -79,7 +80,7 @@ export function mitLichtkarte<T extends THREE.Material>(mat: T, staerke = 1.7, m
  */
 export const FABRIK = {
   gpu: false,
-  licht: (p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5): THREE.Material => mitLichtkarte(new THREE.MeshStandardMaterial(p), staerke, maske, schwelle),
+  licht: (p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0): THREE.Material => mitLichtkarte(new THREE.MeshStandardMaterial(p), staerke, maske, schwelle, durch),
   wasser: (): THREE.Material => wasserGL(),
   lava: (): THREE.Material => lavaGL(),
   himmel: (u: { uTop: { value: THREE.Color }; uBot: { value: THREE.Color }; uFog: { value: THREE.Color } }): THREE.Material => himmelGL(u),
@@ -128,11 +129,17 @@ export const NOISE_GLSL = `
 const VS = 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
 const wasserGL = () => new THREE.ShaderMaterial({
   uniforms: { uZeit: ZEIT, ...WASSER_U, ...LICHT_U }, vertexShader: VS,
-  fragmentShader: `uniform float uZeit, uNacht; uniform vec3 uTief, uHell, uFunkeln, uLichtFarbe; uniform sampler2D uLicht; varying vec3 vW; ${NOISE_GLSL}
+  fragmentShader: `uniform float uZeit, uNacht; uniform vec3 uTief, uHell, uFunkeln, uLichtFarbe, uSonne, uSonneC; uniform sampler2D uLicht; varying vec3 vW; ${NOISE_GLSL}
     void main(){
       vec2 p = vW.xz; float t = uZeit;
       float w = fbm(p * 0.7 + vec2(t * 0.09, t * 0.05)) + 0.5 * fbm(p * 1.8 - vec2(t * 0.07, -t * 0.11));
+      vec2 pe = p + vec2(0.07, 0.0), pn = p + vec2(0.0, 0.07);
+      float wx = fbm(pe * 0.7 + vec2(t * 0.09, t * 0.05)) + 0.5 * fbm(pe * 1.8 - vec2(t * 0.07, -t * 0.11));
+      float wz = fbm(pn * 0.7 + vec2(t * 0.09, t * 0.05)) + 0.5 * fbm(pn * 1.8 - vec2(t * 0.07, -t * 0.11));
+      vec3 nw = normalize(vec3((w - wx) * 5.0, 1.0, (w - wz) * 5.0)), V = normalize(cameraPosition - vW), R = reflect(-V, nw);
+      float fr = pow(1.0 - clamp(dot(V, nw), 0.0, 1.0), 4.0), glanz = pow(clamp(dot(R, uSonne), 0.0, 1.0), 80.0);
       vec3 c = mix(uTief, uHell, smoothstep(0.62, 1.12, w));
+      c = mix(c, uFunkeln * 0.55 + uHell * 0.5, fr * 0.6); c += uSonneC * glanz * 2.5; // Spiegelung des Himmels und Sonnenglanz
       float funk = step(0.99, h1(floor(vW.xz * 14.0) + floor(t * 1.5) * 7.13));
       c += uFunkeln * funk * smoothstep(0.75, 1.05, w) * 0.9;
       float lm = texture2D(uLicht, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r; c += uLichtFarbe * lm * lm * uNacht * 0.35;
@@ -301,7 +308,7 @@ export class Beleuchtung {
   }
   folge(p: THREE.Vector3, cam: THREE.Camera): void {
     this.sun.target.position.copy(p); this.sun.position.copy(p).addScaledVector(this.richtung, 160);
-    this.himmel.mesh.position.copy(cam.position);
+    this.himmel.mesh.position.copy(cam.position); LICHT_U.uSonne.value.copy(this.richtung); LICHT_U.uSonneC.value.copy(this.sun.color).multiplyScalar(Math.min(1.2, this.sun.intensity / 5.4) * (1 - 0.5 * this.nachtD));
     this.strahlen.update(p, this.richtung, this.nachtD, ZEIT.value);
   }
 }

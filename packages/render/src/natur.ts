@@ -316,9 +316,9 @@ function netze(fein: boolean): Map<string, THREE.BufferGeometry> {
 }
 function material(): { fest: THREE.Material; gras: THREE.Material; laub: THREE.Material; nadel: THREE.Material } {
   return MAT ??= {
-    fest: FABRIK.licht({ vertexColors: true, map: felsTex(), roughness: 0.9, metalness: 0 }, 1.2), gras: FABRIK.licht({ vertexColors: true, map: grasTex(), alphaTest: 0.4, roughness: 0.85, metalness: 0 }, 1.2),
-    laub: FABRIK.licht({ vertexColors: true, map: laubTex(), alphaTest: 0.5, roughness: 0.85, metalness: 0 }, 1.2),
-    nadel: FABRIK.licht({ vertexColors: true, map: nadelTex(), alphaTest: 0.45, roughness: 0.85, metalness: 0 }, 1.2)
+    fest: FABRIK.licht({ vertexColors: true, map: felsTex(), roughness: 0.9, metalness: 0 }, 1.2), gras: FABRIK.licht({ vertexColors: true, map: grasTex(), alphaTest: 0.4, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.7),
+    laub: FABRIK.licht({ vertexColors: true, map: laubTex(), alphaTest: 0.5, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 1.1),
+    nadel: FABRIK.licht({ vertexColors: true, map: nadelTex(), alphaTest: 0.45, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.8)
   };
 }
 
