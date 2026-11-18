@@ -41,6 +41,25 @@ orientieren sich an dessen Zweig `grafik`.
 - Große Welt: Kacheln 32 × 32, im Web Worker gebaut, Detailstufen (nah fein, fern Übersicht), ferne Kacheln
   freigeben; Lichter später über eine Lichtkarte statt echter Lichtquellen.
 
+## Foto-Look (Referenz: `docs/bilder/referenz-foto-look.webp`)
+
+Ziel der späteren Spielgrafik: Natur so fotorealistisch wie auf dem Referenzbild (links goldener Morgen mit Nebel und Lichtstrahlen,
+rechts Nacht mit Kristallen und Wellen). Umsetzung in diesem Repo (Schalter `GLATT.an` in `schalter.ts`):
+
+- **Gelände** (`gelaende.ts`, `bodenHoehe()`/`eckeHoehe()` in `welt.ts`): Höhennetz statt Blöcken, Höhe = gewichteter Mittelwert über 4 × 4 Spalten
+  (Stufen werden Hänge), Becken liegen etwas tiefer, Wasser-/Lavaspiegel (`WASSER_Y`, `LAVA_Y`) ragt über die Nachbarspalten, damit die Uferlinie der
+  Boden bestimmt. Vertexfarben: Mittel der Spalten, große warm/kühle Flecken, kahle Stellen, Fels an Steilhängen, Sand/Schlamm am Ufer.
+  Nah (Stufe 3) 2 × 2 Eckpunkte je Block, sonst 1 × 1; am Kachelrand nie Höhenrauschen (Nähte). Übersicht (`uebersichtNetz()`) ebenso glatt.
+  **Figuren und Pflanzen stehen auf `bodenHoehe()`** (in `objekte.ts` als `hoehe` eingebunden); die Simulation rechnet weiter mit `hoehe()` (ganze Blöcke).
+- **Bäume** (`natur.ts`): Laubkronen aus ~170 Laubkarten (Blatttextur mit Alpha-Schnitt, nach außen geneigt, Normalen kugelig) über dunklem Kern;
+  Tannen aus Zweigfächern (Nadeltextur) in Stockwerken; Mittelstufe (Stufe 2) mit weniger Karten. Neue Pflanzenteile brauchen UV auf den deckenden
+  Streifen (`vereint(teile, true)`). Ferner Wald (`baueWald`): weich ausgebeulte Eiformen statt Würfel.
+- **Felsen** (`natur.ts`, `felsbrocken()`): an zufälligen Ebenen abgeschnittene Kugeln, Schichtung, Moos auf Oberseiten.
+- **Dunst und Lichtstrahlen** (`grafik.ts`): `uDunst` im Nebelshader (beide Fassungen) lässt Schwaden auch über Erkundetem ziehen (Tag stärker,
+  `werte.dunst`, in niedriger Grafik aus); `Lichtstrahlen` = wenige lange Additiv-Bahnen aus Standardmaterialien (laufen bei WebGL und WebGPU), an der Welt verankert.
+- Testen im Browser: Vite starten, mit Playwright (WebGL, SwiftShader) `window.runeboom.camera`/`controls` setzen und `menueStopp = true` (Menühintergrund);
+  ein Bild dauert im Software-Renderer mehrere Sekunden, Zeitlimit des Screenshots erhöhen.
+
 ## Technik
 
 Gerüst wie overBOOM: TypeScript, Three.js, Vite; Simulation (`packages/core`) ohne DOM, nur mit Seed (`rng`, `h3`),

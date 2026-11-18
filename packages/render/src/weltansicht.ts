@@ -3,6 +3,7 @@ import { CH, WR, NZ, NN, h3 } from '@runeboom/core';
 import { zuGruppe, becken, weg, WASSER, LAVA, ZEIT, FABRIK } from './grafik.ts';
 import { baueNatur } from './natur.ts';
 import { bauChunk, uebersicht, type ChunkDaten, type UebersichtDaten } from './chunk.ts';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import WeltRechner from './welt.worker.ts?worker&inline';
 
 /**
@@ -100,25 +101,31 @@ export class WeltAnsicht {
   }
   private baueWald(liste: Float32Array): void {
     const n = liste.length / 4;
-    const mat = FABRIK.licht({ roughness: 0.9 }, 1.2, this.maskeTex, 0.75);
+    const mat = FABRIK.licht({ roughness: 0.92, vertexColors: true }, 1.2, this.maskeTex, 0.75);
     const box = new THREE.BoxGeometry(1, 1, 1); box.translate(0, 0.5, 0);
+    // Kronen aus der Ferne: weich ausgebeulte Eiform statt Würfel (etwa 50 Dreiecke), unten dunkler, oben heller
+    let kron: THREE.BufferGeometry = new THREE.SphereGeometry(0.5, 8, 5); kron.deleteAttribute('uv'); kron.deleteAttribute('normal'); kron = mergeVertices(kron, 1e-4);
+    { const p = kron.getAttribute('position'), cc = new Float32Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), f = 1 + 0.16 * Math.sin(x * 11 + z * 7) * Math.cos(y * 9 + x * 5); p.setXYZ(i, x * f, y * f + 0.5, z * f); const k = 0.62 + 0.55 * Math.min(1, Math.max(0, y + 0.5)); cc[3 * i] = cc[3 * i + 1] = cc[3 * i + 2] = k; }
+      kron.setAttribute('color', new THREE.BufferAttribute(cc, 3)); kron.computeVertexNormals(); }
+    { const b = box.getAttribute('position'), cc = new Float32Array(b.count * 3).fill(1); box.setAttribute('color', new THREE.BufferAttribute(cc, 3)); }
     const BER = 256, NB = Math.ceil((2 * WR) / BER), bereich = (x: number, z: number) => Math.min(NB - 1, Math.max(0, Math.floor((x + WR) / BER))) * NB + Math.min(NB - 1, Math.max(0, Math.floor((z + WR) / BER)));
     const zahl = new Array(NB * NB).fill(0);
     for (let i = 0; i < n; i++) zahl[bereich(liste[i * 4], liste[i * 4 + 2])]++;
     const m = new THREE.Matrix4(), c = new THREE.Color(), index = new Map<number, [number, number]>();
     // Maße je Art: Stammhöhe, Kronenbreite, Kronenhöhe, Farben
     const ART: Record<number, [number, number, number, string, string]> = {
-      0: [4.5, 4.6, 3.8, '#5e4128', '#4f8a3c'], 1: [1.5, 3.6, 9.5, '#4d3522', '#2f5a3a'], 2: [4.5, 4.4, 3.6, '#5e4128', '#c27030'],
-      3: [4.5, 4.4, 3.6, '#5e4128', '#5b4e8a'], 4: [0, 2.6, 1.8, '#5e4128', '#4f8a3c'], 5: [6, 0, 0, '#3b302a', '#3b302a'], 9: [0, 2.6, 1.6, '#7d776f', '#8c867f']
+      0: [4.2, 5.6, 5.0, '#5e4128', '#4a7a36'], 1: [1.5, 3.8, 10.5, '#4d3522', '#2c5636'], 2: [4.2, 5.4, 4.8, '#5e4128', '#bf6a2a'],
+      3: [4.2, 5.4, 4.8, '#5e4128', '#5b4e8a'], 4: [0, 2.6, 1.8, '#5e4128', '#4f8a3c'], 5: [6, 0, 0, '#3b302a', '#3b302a'], 9: [0, 2.6, 1.6, '#7d776f', '#8c867f']
     };
     const teile: { stamm: THREE.InstancedMesh; krone: THREE.InstancedMesh; matS: Float32Array; matK: Float32Array }[] = [];
-    const roh = zahl.map((z) => { const stamm = new THREE.InstancedMesh(box, mat, Math.max(1, z)), krone = new THREE.InstancedMesh(box, mat, Math.max(1, z)); stamm.count = krone.count = 0; stamm.receiveShadow = krone.receiveShadow = true; return { stamm, krone }; });
+    const roh = zahl.map((z) => { const stamm = new THREE.InstancedMesh(box, mat, Math.max(1, z)), krone = new THREE.InstancedMesh(kron, mat, Math.max(1, z)); stamm.count = krone.count = 0; stamm.receiveShadow = krone.receiveShadow = true; return { stamm, krone }; });
     for (let i = 0; i < n; i++) {
       const x = liste[i * 4] + 0.5, y = liste[i * 4 + 1], z = liste[i * 4 + 2] + 0.5, a = liste[i * 4 + 3];
       const t = roh[bereich(liste[i * 4], liste[i * 4 + 2])], j = t.stamm.count++; t.krone.count++;
       const [sh, kb, kh, sc, kc] = ART[a] || ART[0], v = 0.85 + h3(x, 3, z) * 0.3;
       m.makeScale(a === 9 ? 0 : 0.55, sh * v || 0.001, a === 9 ? 0 : 0.55).setPosition(x, y, z); t.stamm.setMatrixAt(j, m); t.stamm.setColorAt(j, c.set(sc));
-      m.makeScale(kb * v || 0.001, kh * v || 0.001, kb * v || 0.001).setPosition(x, y + (a === 9 ? 0 : sh * v - (a === 1 ? 0 : 1)), z); t.krone.setMatrixAt(j, m); t.krone.setColorAt(j, c.set(kc).multiplyScalar(0.9 + h3(x, 4, z) * 0.2));
+      m.makeScale(kb * v || 0.001, kh * v || 0.001, kb * v || 0.001).setPosition(x, y + (a === 9 ? 0 : sh * v - (a === 1 ? 0 : 2.4)), z); t.krone.setMatrixAt(j, m); t.krone.setColorAt(j, c.set(kc).multiplyScalar(0.9 + h3(x, 4, z) * 0.2));
       index.set((Math.floor(x) + 600) * 2048 + (Math.floor(z) + 600), [bereich(liste[i * 4], liste[i * 4 + 2]), j]);
     }
     for (const t of roh) {
