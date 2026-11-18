@@ -141,7 +141,7 @@ const PRESETS: Record<Art, Preset> = {
 };
 /** Wachstumsregeln je Art (Ebenen: 0 Stamm, 1 Äste, 2 Zweige, 3 Zweigspitzen mit Blättern), nach dem Vorbild rekursiver Baumgeneratoren */
 const WACHSTUM: Record<Art, { laenge: [number, number, number]; kinder: [number, number, number]; winkel: [number, number, number]; kraft: [number, number, number]; knorrig: [number, number, number, number]; start: [number, number, number]; verjuengung: [number, number, number, number]; blaetter: number }> = {
-  eiche: { laenge: [4.4, 2.9, 1.7], kinder: [5, 4, 5], winkel: [62, 50, 45], kraft: [0.0, 0.0, -0.01], knorrig: [0.05, 0.14, 0.22, 0.26], start: [0.45, 0.25, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
+  eiche: { laenge: [4.4, 2.9, 1.7], kinder: [5, 4, 5], winkel: [62, 50, 45], kraft: [0.0, 0.0, -0.01], knorrig: [0.05, 0.14, 0.22, 0.26], start: [0.45, 0.25, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 16 },
   birke: { laenge: [3.4, 2.2, 1.5], kinder: [6, 4, 4], winkel: [32, 38, 42], kraft: [0.05, 0.02, -0.04], knorrig: [0.04, 0.09, 0.16, 0.2], start: [0.4, 0.2, 0.1], verjuengung: [0.55, 0.65, 0.8, 0.9], blaetter: 13 },
   ahorn: { laenge: [3.9, 2.6, 1.6], kinder: [5, 4, 5], winkel: [50, 48, 44], kraft: [0.02, 0.01, 0.0], knorrig: [0.05, 0.12, 0.2, 0.24], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
   leucht: { laenge: [3.8, 2.5, 1.5], kinder: [5, 4, 4], winkel: [56, 46, 42], kraft: [0.01, 0.0, 0.0], knorrig: [0.06, 0.16, 0.24, 0.28], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 13 }
@@ -189,7 +189,7 @@ function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.Buffe
   mx /= punkte.length; my /= punkte.length; mz /= punkte.length; for (const [x, , z] of punkte) hx = Math.max(hx, Math.hypot(x - mx, z - mz));
   const farbe = kronenFarbe(my, Math.max(1.5, (ymax - ymin) / 2), Math.max(1.5, hx), s, d, m, h);
   const streu: Streuung = { h: P.streuung[0], s: P.streuung[1], l: P.streuung[2], form: P.form, aus: P.ausreisser.map((c) => new THREE.Color(c)), ausWahr: 0.14 + 0.1 * R(16) };
-  t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 0.8 : 1.9) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
+  t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 1.5 : 2.4) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
   { const kern = new THREE.Color(m).multiplyScalar(0.45); t.push(buschel(hx * 0.45, (ymax - ymin) * 0.22, hx * 0.45, mx, my, mz, s, () => kern, 1, 0.3)); }
   if (beeren) for (let i = 0; i < 8; i++) { const [x, y, z] = punkte[Math.floor(rz(i, 3, v, 5) * punkte.length)], aa = rz(i, 1, v, 5) * 6.28; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(x + Math.cos(aa) * 0.8, y + (rz(i, 2, v, 5) - 0.5), z + Math.sin(aa) * 0.8), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
   if (fein) for (let k = 0; k < 3 + Math.floor(R(10) * 3); k++) { const aa = k * 2.1 + R(11) * 6, dx = Math.cos(aa), dz = Math.sin(aa), l = 1.3 + R(12) * 0.8; t.push(ast(dx * 0.25, 0.15, dz * 0.25, dx * l, -0.3, dz * l, dicke * 0.45, dicke * 0.15, P.rinde, 5)); }
