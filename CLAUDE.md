@@ -54,6 +54,10 @@ rechts Nacht mit Kristallen und Wellen). Umsetzung in diesem Repo (Schalter `GLA
 - **Bäume** (`natur.ts`): Laubkronen aus ~170 Laubkarten (Blatttextur mit Alpha-Schnitt, nach außen geneigt, Normalen kugelig) über dunklem Kern;
   Tannen aus Zweigfächern (Nadeltextur) in Stockwerken; Mittelstufe (Stufe 2) mit weniger Karten. Neue Pflanzenteile brauchen UV auf den deckenden
   Streifen (`vereint(teile, true)`). Ferner Wald (`baueWald`): weich ausgebeulte Eiformen statt Würfel.
+- **Texturen und Varianten** (`texturen.ts`, `natur.ts`): alle Texturen prozedural auf Leinwand gemalt, Grauwerte (Farbe aus Vertexfarben): `bodenTex` (Boden, per UV Weltkoordinate/6 auf Kachel und Übersicht),
+  `felsTex`, `grasTex`, `laubTex`, `nadelTex`. Bäume, Büsche, Felsen, Gras, Blumen, Schilf, Farne entstehen aus Zufallsparametern je Variante (`NV` = Zahl der Varianten;
+  Laub: Stammhöhe/-neigung, 1–3 Kronenlappen, Farbverschiebung), Instanzen zusätzlich mit eigener Breite/Höhe, Schieflage und Farbton. Ufer: Schilf und Kiesel (chunk.ts),
+  Wasser ohne Pixelraster (glatte Wellen, beide Shader).
 - **Felsen** (`natur.ts`, `felsbrocken()`): an zufälligen Ebenen abgeschnittene Kugeln, Schichtung, Moos auf Oberseiten.
 - **Dunst und Lichtstrahlen** (`grafik.ts`): `uDunst` im Nebelshader (beide Fassungen) lässt Schwaden auch über Erkundetem ziehen (Tag stärker,
   `werte.dunst`, in niedriger Grafik aus); `Lichtstrahlen` = wenige lange Additiv-Bahnen aus Standardmaterialien (laufen bei WebGL und WebGPU), an der Welt verankert.

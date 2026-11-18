@@ -4,6 +4,7 @@ import { zuGruppe, becken, weg, WASSER, LAVA, ZEIT, FABRIK } from './grafik.ts';
 import { baueNatur } from './natur.ts';
 import { bauChunk, uebersicht, type ChunkDaten, type UebersichtDaten } from './chunk.ts';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { bodenTex } from './texturen.ts';
 import WeltRechner from './welt.worker.ts?worker&inline';
 
 /**
@@ -44,8 +45,8 @@ export class WeltAnsicht {
     this.maskeTex.magFilter = this.maskeTex.minFilter = THREE.NearestFilter; this.maskeTex.needsUpdate = true;
     this.nebelTex.magFilter = this.nebelTex.minFilter = THREE.LinearFilter;
     const mt = this.maskeTex;
-    this.UEBER = FABRIK.licht({ vertexColors: true, roughness: 0.96 }, 1.2, mt, 0.25);
-    this.BODEN = FABRIK.licht({ vertexColors: true, roughness: 0.97, metalness: 0 }, 1.2);
+    this.UEBER = FABRIK.licht({ vertexColors: true, map: bodenTex(), roughness: 0.96 }, 1.2, mt, 0.25);
+    this.BODEN = FABRIK.licht({ vertexColors: true, map: bodenTex(), roughness: 0.97, metalness: 0 }, 1.2);
     const zahl = Math.min(3, Math.max(1, (navigator.hardwareConcurrency || 4) - 1));
     try { for (let i = 0; i < zahl; i++) { const w = new WeltRechner(); w.onmessage = (e) => this.antwort(w, e.data); w.postMessage({ art: 'seed', seed }); this.rechner.push(w); this.frei.push(w); } }
     catch (e) { console.warn('Kein Hintergrund-Rechner, baue auf der Seite', e); }
@@ -74,7 +75,7 @@ export class WeltAnsicht {
     const netz = zuGruppe(r.grob, 1); if (stufe < 3) netz.traverse((o) => { o.castShadow = false; }); grp.add(netz);
     if (r.boden) { // glatter Boden (Foto-Look)
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(r.boden.p, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(r.boden.n, 3)); geo.setAttribute('color', new THREE.BufferAttribute(r.boden.c, 3)); geo.setIndex(new THREE.BufferAttribute(r.boden.i, 1));
+      geo.setAttribute('position', new THREE.BufferAttribute(r.boden.p, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(r.boden.n, 3)); geo.setAttribute('color', new THREE.BufferAttribute(r.boden.c, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(r.boden.uv, 2)); geo.setIndex(new THREE.BufferAttribute(r.boden.i, 1));
       geo.computeBoundingSphere(); const m = new THREE.Mesh(geo, this.BODEN); m.castShadow = stufe >= 3; m.receiveShadow = true; grp.add(m);
     }
     if (r.natur.length) for (const o of baueNatur(r.natur, stufe >= 3)) grp.add(o);
@@ -87,7 +88,7 @@ export class WeltAnsicht {
   private uebersichtFertig(u: UebersichtDaten): void {
     this.uebersicht = u;
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(u.p, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(u.n, 3)); geo.setAttribute('color', new THREE.BufferAttribute(u.c, 3)); geo.setIndex(new THREE.BufferAttribute(u.i, 1));
+    geo.setAttribute('position', new THREE.BufferAttribute(u.p, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(u.n, 3)); geo.setAttribute('color', new THREE.BufferAttribute(u.c, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(u.uv, 2)); geo.setIndex(new THREE.BufferAttribute(u.i, 1));
     this.uebersichtMesh = new THREE.Mesh(geo, this.UEBER); this.uebersichtMesh.receiveShadow = true; this.gruppe.add(this.uebersichtMesh);
     this.baueWald(u.dekoListe);
     this.baueNebel(); this.onUebersicht();

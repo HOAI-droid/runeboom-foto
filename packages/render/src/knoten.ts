@@ -65,10 +65,10 @@ function wasser(): THREE.Material {
   const W = WASSER_U;
   const uTief = uniform(W.uTief.value), uHell = uniform(W.uHell.value), uFunkeln = uniform(W.uFunkeln.value);
   m.colorNode = Fn(() => {
-    const p = floor(positionWorld.xz.mul(8)).div(8), t = uZeit;
+    const p = positionWorld.xz, t = uZeit;
     const w = fbm(p.mul(0.7).add(vec2(t.mul(0.09), t.mul(0.05)))).add(fbm(p.mul(1.8).sub(vec2(t.mul(0.07), t.mul(-0.11)))).mul(0.5));
     const c = mix(uTief, uHell, smoothstep(0.62, 1.12, w)).toVar();
-    const funk = step(0.965, h1(floor(positionWorld.xz.mul(8)).add(floor(t.mul(1.5)).mul(7.13))));
+    const funk = step(0.99, h1(floor(positionWorld.xz.mul(14)).add(floor(t.mul(1.5)).mul(7.13))));
     c.addAssign(uFunkeln.mul(funk).mul(smoothstep(0.75, 1.05, w)).mul(0.9));
     const lm = lichtWert(); c.addAssign(uLichtFarbe.mul(lm.mul(lm)).mul(uNacht).mul(0.35));
     return vec4(c, 1);

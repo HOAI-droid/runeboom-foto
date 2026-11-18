@@ -6,11 +6,11 @@ import { lin, srgbLin } from './voxel.ts';
  * Fels an steilen Hängen und feuchtem Ufer. Wird im Hintergrund-Rechner gebaut (nur Zahlenfelder).
  * Höhen kommen aus `bodenHoehe()` (core/welt.ts), damit Bäume, Felsen und Figuren genau auf dem Boden stehen.
  */
-export interface BodenNetz { p: Float32Array; n: Float32Array; c: Float32Array; i: Uint32Array }
+export interface BodenNetz { p: Float32Array; n: Float32Array; c: Float32Array; i: Uint32Array; uv: Float32Array }
 
 const klemme = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const glatt = (a: number, b: number, t: number) => { const u = klemme((t - a) / (b - a)); return u * u * (3 - 2 * u); };
-const FELS = lin('#857d70'), FELS_DUNKEL = lin('#5a544b'), ERDE = lin('#6f5a3c'), SAND = lin('#a99b6d'), SCHLAMM = lin('#4f4d35'), RAND = lin('#5d5750');
+const FELS = lin('#857d70'), FELS_DUNKEL = lin('#5a544b'), ERDE = lin('#6f5a3c'), SAND = lin('#8d8466'), SCHLAMM = lin('#4f4d35'), RAND = lin('#5d5750');
 
 /** Normale des glatten Geländes (Mittelpunktsdifferenzen, über Kachelgrenzen hinweg gleich) */
 export function bodenNormale(x: number, z: number, e = 0.5): [number, number, number] {
@@ -47,7 +47,7 @@ function farbeAn(wx: number, wz: number, hv: number, ny: number, S: (x: number, 
   if (hv < 6.98 && art !== 'l') {
     let wasser = false; for (let dx = -2; dx <= 2 && !wasser; dx++) for (let dz = -2; dz <= 2; dz++) { const s = S(Math.floor(wx) + dx, Math.floor(wz) + dz); if (s && s.a === 'w') { wasser = true; break; } }
     if (wasser) {
-      const nass = glatt(6.98, 6.45, hv), sand = glatt(6.98, 6.72, hv) * (0.7 + 0.3 * m1);
+      const nass = glatt(6.9, 6.4, hv), sand = glatt(6.9, 6.7, hv) * (0.5 + 0.4 * m1) * glatt(0.3, 0.6, m3);
       r += (SAND[0] - r) * sand * 0.8; g += (SAND[1] - g) * sand * 0.8; b += (SAND[2] - b) * sand * 0.8;
       r += (SCHLAMM[0] - r) * nass * 0.6; g += (SCHLAMM[1] - g) * nass * 0.6; b += (SCHLAMM[2] - b) * nass * 0.6;
     }
@@ -67,14 +67,14 @@ function randWand(p: Float32Array, e0: number, e1: number, dx: number, dz: numbe
 /** Boden einer Kachel. fein: 2 × 2 Eckpunkte je Block mit feinem Farbrauschen und leichten Unebenheiten, sonst 1 × 1. */
 export function bodenNetz(cx: number, cz: number, fein: boolean, S: (x: number, z: number) => Spalte | null): BodenNetz {
   const ox = cx * CH, oz = cz * CH, R = fein ? 2 : 1, M = CH * R, V = M + 1, sd = seed();
-  const p = new Float32Array(V * V * 3), nn = new Float32Array(V * V * 3), c = new Float32Array(V * V * 3);
+  const p = new Float32Array(V * V * 3), nn = new Float32Array(V * V * 3), c = new Float32Array(V * V * 3), uvk = new Float32Array(V * V * 2);
   for (let a = 0; a < V; a++) for (let b = 0; b < V; b++) {
     const lx = a / R, lz = b / R, wx = ox + lx, wz = oz + lz;
     let h = bodenHoehe(wx, wz);
     const innen = a > 0 && a < M && b > 0 && b < M;
     if (fein && innen) h += (fbm(wx, wz, 0.9, sd + 41) - 0.5) * 0.16; // kleine Unebenheiten (nie am Kachelrand, dort muss alles passen)
-    const nm = bodenNormale(wx, wz), col = farbeAn(wx, wz, h, nm[1], S, sd), o = (a * V + b) * 3;
-    p[o] = lx; p[o + 1] = h; p[o + 2] = lz; nn[o] = nm[0]; nn[o + 1] = nm[1]; nn[o + 2] = nm[2]; c[o] = col[0]; c[o + 1] = col[1]; c[o + 2] = col[2];
+    const nm = bodenNormale(wx, wz), col = farbeAn(wx, wz, h, nm[1], S, sd).map((q) => q * 1.7), o = (a * V + b) * 3;
+    uvk[(a * V + b) * 2] = wx / 6; uvk[(a * V + b) * 2 + 1] = wz / 6; p[o] = lx; p[o + 1] = h; p[o + 2] = lz; nn[o] = nm[0]; nn[o + 1] = nm[1]; nn[o + 2] = nm[2]; c[o] = col[0]; c[o + 1] = col[1]; c[o + 2] = col[2];
   }
   const idx: number[] = [], skp: number[] = [], skn: number[] = [], skc: number[] = [], ski: number[] = [];
   const hat = (x: number, z: number) => !!S(x, z);
@@ -93,7 +93,8 @@ export function bodenNetz(cx: number, cz: number, fein: boolean, S: (x: number, 
   }
   const vo = V * V, pp = new Float32Array(p.length + skp.length), n2 = new Float32Array(nn.length + skn.length), cc = new Float32Array(c.length + skc.length), ii = new Uint32Array(idx.length + ski.length);
   pp.set(p); pp.set(skp, p.length); n2.set(nn); n2.set(skn, nn.length); cc.set(c); cc.set(skc, c.length); ii.set(idx); for (let k = 0; k < ski.length; k++) ii[idx.length + k] = ski[k] + vo;
-  return { p: pp, n: n2, c: cc, i: ii };
+  const uu = new Float32Array(uvk.length + (skp.length / 3) * 2); uu.set(uvk);
+  return { p: pp, n: n2, c: cc, i: ii, uv: uu };
 }
 
 /** Wasser- und Lavaflächen einer Kachel: jede Spalte mit Becken und ihre Nachbarn, damit der Spiegel am Ufer unter dem Boden verschwindet (natürliche Uferlinie) */
@@ -110,7 +111,7 @@ export function beckenZellen(cx: number, cz: number, S: (x: number, z: number) =
 // ---------- Übersicht der ganzen Welt ----------
 /** Übersichtsnetz: Eckpunkte alle Z Blöcke, Höhe aus dem glatten Gelände, Farbe aus den Zellfarben mit Flecken */
 export function uebersichtNetz(N: number, Z: number, farbe: Uint8Array, hoch: Float32Array, art: Uint8Array): BodenNetz {
-  const V = N + 1, sd = seed(), p = new Float32Array(V * V * 3), nn = new Float32Array(V * V * 3), c = new Float32Array(V * V * 3), H = new Float32Array(V * V);
+  const V = N + 1, sd = seed(), p = new Float32Array(V * V * 3), nn = new Float32Array(V * V * 3), c = new Float32Array(V * V * 3), H = new Float32Array(V * V), uvk = new Float32Array(V * V * 2);
   const zelle = (i: number, j: number) => (i < 0 || j < 0 || i >= N || j >= N ? -1 : hoch[i * N + j] > -900 ? j * N + i : -1);
   const zf = new Float32Array(N * N * 3); for (let q = 0; q < N * N; q++) for (let k = 0; k < 3; k++) zf[q * 3 + k] = srgbLin(farbe[q * 3 + k] / 255);
   for (let i = 0; i < V; i++) for (let j = 0; j < V; j++) {
@@ -123,13 +124,13 @@ export function uebersichtNetz(N: number, Z: number, farbe: Uint8Array, hoch: Fl
     const o = (i * V + j) * 3, wx = -WR + i * Z, wz = -WR + j * Z;
     const h = (a: number, b: number) => H[Math.min(V - 1, Math.max(0, a)) * V + Math.min(V - 1, Math.max(0, b))];
     const dx = h(i - 1, j) - h(i + 1, j), dz = h(i, j - 1) - h(i, j + 1), len = Math.hypot(dx, 2 * Z, dz);
-    p[o] = wx; p[o + 1] = H[i * V + j]; p[o + 2] = wz; nn[o] = dx / len; nn[o + 1] = 2 * Z / len; nn[o + 2] = dz / len;
+    uvk[(i * V + j) * 2] = wx / 6; uvk[(i * V + j) * 2 + 1] = wz / 6; p[o] = wx; p[o + 1] = H[i * V + j]; p[o + 2] = wz; nn[o] = dx / len; nn[o + 1] = 2 * Z / len; nn[o + 2] = dz / len;
     let r = 0, g = 0, b = 0, k = 0;
     for (const [a, bb] of [[i - 1, j - 1], [i, j - 1], [i - 1, j], [i, j]]) { const q = zelle(a, bb); if (q < 0) continue; r += zf[q * 3]; g += zf[q * 3 + 1]; b += zf[q * 3 + 2]; k++; }
     if (!k) { c[o] = RAND[0]; c[o + 1] = RAND[1]; c[o + 2] = RAND[2]; continue; }
     const m = 0.85 + 0.3 * fbm(wx, wz, 0.12, sd + 51), steil = glatt(0.25, 0.5, 1 - nn[o + 1]) * 0.5;
     r = (r / k) * m; g = (g / k) * m; b = (b / k) * m;
-    c[o] = r + (FELS[0] - r) * steil; c[o + 1] = g + (FELS[1] - g) * steil; c[o + 2] = b + (FELS[2] - b) * steil;
+    c[o] = (r + (FELS[0] - r) * steil) * 1.7; c[o + 1] = (g + (FELS[1] - g) * steil) * 1.7; c[o + 2] = (b + (FELS[2] - b) * steil) * 1.7;
   }
   const idx: number[] = [], skp: number[] = [], skn: number[] = [], skc: number[] = [], ski: number[] = [];
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
@@ -144,5 +145,6 @@ export function uebersichtNetz(N: number, Z: number, farbe: Uint8Array, hoch: Fl
   }
   const vo = V * V, pp = new Float32Array(p.length + skp.length), n2 = new Float32Array(nn.length + skn.length), cc = new Float32Array(c.length + skc.length), ii = new Uint32Array(idx.length + ski.length);
   pp.set(p); pp.set(skp, p.length); n2.set(nn); n2.set(skn, nn.length); cc.set(c); cc.set(skc, c.length); ii.set(idx); for (let k = 0; k < ski.length; k++) ii[idx.length + k] = ski[k] + vo;
-  return { p: pp, n: n2, c: cc, i: ii };
+  const uu = new Float32Array(uvk.length + (skp.length / 3) * 2); uu.set(uvk);
+  return { p: pp, n: n2, c: cc, i: ii, uv: uu };
 }

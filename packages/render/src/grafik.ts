@@ -130,10 +130,10 @@ const wasserGL = () => new THREE.ShaderMaterial({
   uniforms: { uZeit: ZEIT, ...WASSER_U, ...LICHT_U }, vertexShader: VS,
   fragmentShader: `uniform float uZeit, uNacht; uniform vec3 uTief, uHell, uFunkeln, uLichtFarbe; uniform sampler2D uLicht; varying vec3 vW; ${NOISE_GLSL}
     void main(){
-      vec2 p = floor(vW.xz * 8.0) / 8.0; float t = uZeit;
+      vec2 p = vW.xz; float t = uZeit;
       float w = fbm(p * 0.7 + vec2(t * 0.09, t * 0.05)) + 0.5 * fbm(p * 1.8 - vec2(t * 0.07, -t * 0.11));
       vec3 c = mix(uTief, uHell, smoothstep(0.62, 1.12, w));
-      float funk = step(0.965, h1(floor(vW.xz * 8.0) + floor(t * 1.5) * 7.13));
+      float funk = step(0.99, h1(floor(vW.xz * 14.0) + floor(t * 1.5) * 7.13));
       c += uFunkeln * funk * smoothstep(0.75, 1.05, w) * 0.9;
       float lm = texture2D(uLicht, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r; c += uLichtFarbe * lm * lm * uNacht * 0.35;
       gl_FragColor = vec4(c, 1.0);
@@ -229,7 +229,7 @@ function strahlTex(): THREE.CanvasTexture {
   const W = 128, H = 512, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d')!, img = c.createImageData(W, H);
   const glatt = (a: number, b: number, t: number) => { const u = Math.min(1, Math.max(0, (t - a) / (b - a))); return u * u * (3 - 2 * u); };
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const t = 1 - y / (H - 1), u = x / (W - 1), quer = glatt(0, 0.5, 1 - Math.abs(2 * u - 1)), laengs = glatt(0, 0.16, t) * (1 - glatt(0.5, 1, t));
+    const t = 1 - y / (H - 1), u = x / (W - 1), quer = glatt(0, 0.5, 1 - Math.abs(2 * u - 1)), laengs = glatt(0, 0.34, t) * (1 - glatt(0.5, 1, t));
     const streif = 0.55 + 0.25 * (Math.sin(u * 61 + Math.sin(u * 17) * 2.3) * 0.5 + 0.5) + 0.2 * (Math.sin(u * 23 + 1.7) * 0.5 + 0.5);
     const a = quer * quer * laengs * streif, o = (y * W + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.round(255 * a);
   }
@@ -253,7 +253,7 @@ export class Lichtstrahlen {
   }
   /** sonne: Einheitsvektor zur Sonne; nacht 0…1 */
   update(ziel: THREE.Vector3, sonne: THREE.Vector3, nacht: number, zeit: number): void {
-    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.24 + nacht * 0.04;
+    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.18 + nacht * 0.04;
     const x = new THREE.Vector3(-sonne.z, 0, sonne.x).normalize(), z = new THREE.Vector3().crossVectors(x, sonne), m = new THREE.Matrix4().makeBasis(x, sonne, z), q = new THREE.Quaternion().setFromRotationMatrix(m);
     const farbe = new THREE.Color().set('#ffe0aa').lerp(new THREE.Color('#9db4ff'), Math.min(1, nacht * 1.4));
     for (let a = -2; a < 2; a++) for (let b = -2; b < 2; b++) {

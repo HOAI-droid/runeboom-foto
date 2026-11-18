@@ -47,7 +47,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     if (dk.art === 'baum' && zu) { if (zu === 'stumpf') stumpf(F, X, Y, Z, dk.typ); else setzling(F, X, Y, Z, r, dk.typ); continue; }
     if (GLATT.an && (dk.art !== 'gras' || stufe >= 3)) { // glatte Natur: nur Zahlen für die Darstellung (siehe natur.ts)
       // Stelle in der Kachel mit leichtem Versatz (nicht auf dem Blockraster), Höhe aus dem glatten Boden
-      const lx = x - ox + 0.2 + r() * 0.6, lz = z - oz + 0.2 + r() * 0.6, ly = bodenHoehe(x + (lx - (x - ox)), z + (lz - (z - oz))), dreh = r() * 6.283, v = Math.floor(r() * 3), asche = s.a === 'asche' ? 1 : 0;
+      const lx = x - ox + 0.2 + r() * 0.6, lz = z - oz + 0.2 + r() * 0.6, ly = bodenHoehe(x + (lx - (x - ox)), z + (lz - (z - oz))), dreh = r() * 6.283, v = Math.floor(r() * 6), asche = s.a === 'asche' ? 1 : 0;
       const hoeheAn = (qx: number, qz: number) => bodenHoehe(ox + qx, oz + qz);
       if (dk.art === 'baum') natur.push(NAT_ART[dk.typ] ?? 0, lx, ly - 0.1, lz, dreh, 0.85 + r() * 0.4, v, 0);
       else if (dk.art === 'fels') { natur.push(6, lx, ly, lz, dreh, 0.8 + r() * 0.8, v, asche); for (let q = 0; q < 3; q++) { const fx = lx + (r() - 0.5) * 2.6, fz = lz + (r() - 0.5) * 2.6; natur.push(9, fx, hoeheAn(fx, fz) - 0.05, fz, r() * 6.283, 0.8 + r() * 0.6, q, 0); } }
@@ -71,6 +71,14 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     if (h < (wald > 0.52 ? 0.14 : 0.03)) natur.push(9, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 2), 0);
     else if (h3(x, 32, z) < 0.012) natur.push(10, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.5, Math.floor(h3(x, 38, z) * 4), 0);
     else if (h3(x, 33, z) < 0.3) natur.push(7, lx, y, lz, h3(x, 36, z) * 6.283, 0.9 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 3), 0);
+  }
+  if (GLATT.an && stufe >= 3) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) { // Ufer: Schilf und Kiesel an Land und im flachen Wasser, nur Darstellung
+    const s = S(x, z); if (!s || (s.a !== 'gras' && s.a !== 'w')) continue;
+    let nah = false; for (let dx = -1; dx <= 1 && !nah; dx++) for (let dz = -1; dz <= 1; dz++) { const q = S(x + dx, z + dz); if (q && (s.a === 'w' ? q.a !== 'w' : q.a === 'w')) { nah = true; break; } }
+    if (!nah) continue;
+    const jx = h3(x, 41, z), jz = h3(x, 42, z), lx = x - ox + 0.1 + jx * 0.8, lz = z - oz + 0.1 + jz * 0.8, y = bodenHoehe(x + 0.1 + jx * 0.8, z + 0.1 + jz * 0.8);
+    if (h3(x, 43, z) < 0.55) natur.push(11, lx, y - 0.1, lz, jx * 6.283, 0.8 + jz * 0.6, Math.floor(h3(x, 44, z) * 3), 0);
+    if (h3(x, 45, z) < 0.35) natur.push(6, lx + 0.2, y - 0.05, lz - 0.2, jz * 6.283, 0.25 + h3(x, 46, z) * 0.35, Math.floor(h3(x, 47, z) * 6), 0);
   }
   for (const o of orte()) {
     if (Math.floor(o.x / CH) !== cx || Math.floor(o.z / CH) !== cz) continue;
@@ -108,7 +116,7 @@ export function vereine(a: MeshDaten | null, b: MeshDaten | null, sb: number): M
   return { p, n, c, i };
 }
 
-export interface UebersichtDaten { p: Float32Array; n: Float32Array; c: Float32Array; i: Uint32Array; hoch: Float32Array; boden: Float32Array; farbe: Uint8Array; N: number;
+export interface UebersichtDaten { p: Float32Array; n: Float32Array; uv: Float32Array; c: Float32Array; i: Uint32Array; hoch: Float32Array; boden: Float32Array; farbe: Uint8Array; N: number;
   /** grobe Bäume und Felsen der ganzen Welt: je 4 Werte x, Bodenhöhe, z, Art (0 laub, 1 tanne, 2 herbst, 3 leucht, 4 busch, 5 tot, 9 fels) */
   dekoListe: Float32Array }
 
@@ -137,5 +145,5 @@ export function uebersicht(): UebersichtDaten {
     dl.push(x, GLATT.an ? bodenHoehe(x + 0.5, z + 0.5) : s.h + 1, z, d.art === 'fels' ? 9 : ART[d.typ]);
   }
   const netz = uebersichtNetz(N, Z, farbe, hoch, art);
-  return { p: netz.p, n: netz.n, c: netz.c, i: netz.i, hoch, boden, farbe, N, dekoListe: new Float32Array(dl) };
+  return { p: netz.p, n: netz.n, c: netz.c, i: netz.i, uv: netz.uv, hoch, boden, farbe, N, dekoListe: new Float32Array(dl) };
 }
