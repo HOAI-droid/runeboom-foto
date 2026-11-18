@@ -83,7 +83,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     const pr = pfadRand(x + 0.5, z + 0.5);
     let wd = 9; for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) { const q = S(x + dx, z + dz); if (q && q.a === 'w') wd = Math.min(wd, Math.hypot(dx, dz)); }
     const dichte = Math.min(1, Math.max(0, (pr - 0.2) / 1.6)) * Math.min(1, Math.max(0, (wd - 0.9) / 2.2)), zahl = Math.floor(dichte * (wald > 0.52 ? 2.2 : 3.4) + h3(x, 70, z));
-    for (let q = 0; q < Math.min(4, zahl); q++) { const gx = lx + (h3(x, 71 + q, z) - 0.5) * 0.9, gz = lz + (h3(x, 75 + q, z) - 0.5) * 0.9; natur.push(7, gx, bodenHoehe(ox + gx, oz + gz), gz, h3(x, 79 + q, z) * 6.283, (wald > 0.52 ? 0.75 : 0.95) + h3(x, 83 + q, z) * 0.7, Math.floor(h3(x, 87 + q, z) * 6), 0); }
+    for (let q = 0; q < Math.min(4, zahl); q++) { const gx = lx + (h3(x, 71 + q, z) - 0.5) * 0.9, gz = lz + (h3(x, 75 + q, z) - 0.5) * 0.9; natur.push(7, gx, bodenHoehe(ox + gx, oz + gz), gz, h3(x, 79 + q, z) * 6.283, (wald > 0.52 ? 0.7 : 0.85) + h3(x, 83 + q, z) * 0.5, Math.floor(h3(x, 87 + q, z) * 6), 0); }
     // Wegrand: trockene Büschel und Kiesel
     if (pr > -0.2 && pr < 1.4) {
       if (h3(x, 91, z) < 0.55) natur.push(7, lx, y, lz, h3(x, 36, z) * 6.283, 0.55 + h3(x, 37, z) * 0.4, 3, 0);

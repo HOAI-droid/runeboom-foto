@@ -69,6 +69,12 @@ const vereint = (teile: THREE.BufferGeometry[], uv = false): THREE.BufferGeometr
 // ---------- Laubtextur: Büschel aus sehr vielen feinen Blättern (Alpha-Schnitt, Grauwerte; die Farbe kommt aus den Vertexfarben).
 // Atlas 256²: links (x < 224) das Büschel, x 224…248 Rinde (senkrechte Furchen, waagrechte Narben), x ≥ 248 deckend weiß ----------
 let LAUBTEX: THREE.CanvasTexture | null = null;
+/** weiches Wertrauschen mit per Zellen über die Textur (nicht kachelnd), 0…1 */
+function vrausch(x: number, y: number, per: number, sd: number): number {
+  const fx = x / 256 * per, fy = y / 256 * per, xi = Math.floor(fx), yi = Math.floor(fy), tx = fx - xi, ty = fy - yi, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+  const h = (i: number, j: number) => { let q = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(sd, 1442695041)) | 0; q = Math.imul(q ^ (q >>> 13), 1274126177); q = Math.imul(q ^ (q >>> 16), 2246822519); return ((q ^ (q >>> 15)) >>> 0) / 4294967296; };
+  return h(xi, yi) * (1 - sx) * (1 - sy) + h(xi + 1, yi) * sx * (1 - sy) + h(xi, yi + 1) * (1 - sx) * sy + h(xi + 1, yi + 1) * sx * sy;
+}
 function laubTex(): THREE.CanvasTexture {
   if (LAUBTEX) return LAUBTEX;
   const n = 256, cv = document.createElement('canvas'); cv.width = cv.height = n; const c = cv.getContext('2d')!;
@@ -78,20 +84,20 @@ function laubTex(): THREE.CanvasTexture {
     const gr = c.createLinearGradient(0, h, 0, -h); gr.addColorStop(0, `rgb(${v * 0.45 | 0},${v * 0.5 | 0},${v * 0.42 | 0})`); gr.addColorStop(1, `rgb(${Math.min(255, v * 1.1) | 0},${v | 0},${v * 0.88 | 0})`);
     c.fillStyle = gr; c.beginPath(); c.moveTo(0, h); c.quadraticCurveTo(w * 1.3, h * 0.1, 0, -h); c.quadraticCurveTo(-w * 1.3, h * 0.1, 0, h); c.fill(); c.restore();
   };
-  const R = 104, mx = 112, my = 128;
-  for (let pass = 0; pass < 3; pass++) {
-    const zahl = pass === 0 ? 420 : pass === 1 ? 700 : 520;
-    for (let i = 0; i < zahl; i++) {
-      const a = rz(i, pass, 1, 31) * 6.2832, r = Math.sqrt(rz(i, pass, 2, 31)) * R * (pass === 0 ? 0.86 : 1) * (0.8 + 0.2 * Math.sin(a * 5 + 1.3) * Math.sin(a * 3 + 0.4)), x = mx + Math.cos(a) * r * 1.05, y = my + Math.sin(a) * r * 0.9;
-      const v = pass === 0 ? 70 + 60 * rz(i, pass, 3, 31) : pass === 1 ? 120 + 90 * rz(i, pass, 3, 31) : 190 + 65 * Math.pow(rz(i, pass, 3, 31), 0.6);
-      blatt(x, y, 2.0 + 2.2 * rz(i, pass, 4, 31), 5 + 6 * rz(i, pass, 5, 31), a + 1.57 + (rz(i, pass, 6, 31) - 0.5) * 2.0, v);
-    }
+  // Umriss aus Rauschen (Lappen, Buchten, Lücken) statt Kreis: Blätter werden nur dort gemalt, wo die Dichte reicht
+  const dichte = (x: number, y: number) => { const dx = (x - 112) / 106, dy = (y - 128) / 118, rad = Math.hypot(dx, dy) * (0.72 + 0.6 * vrausch(x, y, 3, 7)) * (0.9 + 0.3 * vrausch(x, y, 7, 8)); return 0.55 * vrausch(x, y, 5, 1) + 0.3 * vrausch(x, y, 11, 2) + 0.35 * vrausch(x, y, 24, 3) - 0.95 * Math.max(0, rad - 0.3) ** 1.3 + 0.15; };
+  let gemalt = 0, versuch = 0;
+  while (gemalt < 1900 && versuch < 40000) {
+    versuch++; const x = 6 + rz(versuch, 1, 0, 33) * 212, y = 4 + rz(versuch, 2, 0, 33) * 248, d = dichte(x, y);
+    if (d < 0.4 + 0.25 * rz(versuch, 3, 0, 33)) continue; gemalt++;
+    const pass = gemalt % 3, v = pass === 0 ? 70 + 60 * rz(versuch, 4, 0, 33) : pass === 1 ? 120 + 90 * rz(versuch, 4, 0, 33) : 190 + 65 * Math.pow(rz(versuch, 4, 0, 33), 0.6);
+    blatt(x, y, 1.9 + 2.2 * rz(versuch, 5, 0, 33), 5 + 6 * rz(versuch, 6, 0, 33), rz(versuch, 7, 0, 33) * 6.2832, v * (0.8 + 0.4 * vrausch(x, y, 6, 9)));
   }
   // Rinde
   c.fillStyle = '#9a9a96'; c.fillRect(224, 0, 24, n);
   for (let i = 0; i < 90; i++) { const x = 224 + rz(i, 1, 0, 32) * 24, y = rz(i, 2, 0, 32) * n, l = 20 + rz(i, 3, 0, 32) * 90; c.fillStyle = `rgba(${rz(i, 4, 0, 32) > 0.4 ? '30,28,26' : '230,230,224'},${0.25 + rz(i, 5, 0, 32) * 0.4})`; c.fillRect(x, y, 1 + rz(i, 6, 0, 32) * 2.5, l); }
   for (let i = 0; i < 40; i++) { const y = rz(i, 1, 1, 32) * n; c.fillStyle = `rgba(20,18,16,${0.2 + rz(i, 2, 1, 32) * 0.3})`; c.fillRect(224 + rz(i, 3, 1, 32) * 12, y, 6 + rz(i, 4, 1, 32) * 14, 1.5); }
-  c.fillStyle = '#ffffff'; c.fillRect(248, 0, 8, n); // deckender Streifen für Kerne, Steine, Blüten
+  c.fillStyle = '#ffffff'; c.fillRect(248, 0, 8, n);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; LAUBTEX = t; return t;
 }
 /**
@@ -134,17 +140,17 @@ interface Streuung { h: number; s: number; l: number; form: [number, number]; au
 type Art = 'eiche' | 'birke' | 'ahorn' | 'leucht';
 interface Preset { stamm: [number, number]; dicke: [number, number]; aeste: [number, number]; breite: [number, number]; hoehe: [number, number]; steil: [number, number]; blatt: [number, number]; dichte: [number, number]; farben: [string, string, string]; rinde: [string, string]; ausreisser: string[]; form: [number, number]; streuung: [number, number, number] }
 const PRESETS: Record<Art, Preset> = {
-  eiche: { stamm: [2.4, 4.4], dicke: [0.55, 0.9], aeste: [4, 6], breite: [1.0, 1.6], hoehe: [0.7, 1.05], steil: [0.35, 0.8], blatt: [0.9, 1.15], dichte: [0.85, 1.3], farben: ['#1a3418', '#3a6128', '#7d9f45'], rinde: ['#2c2118', '#5a4630'], ausreisser: ['#a6a838', '#2a4a22', '#c28a2a'], form: [0.8, 1.3], streuung: [0.05, 0.22, 0.12] },
-  birke: { stamm: [5.0, 8.0], dicke: [0.28, 0.42], aeste: [4, 6], breite: [0.6, 1.0], hoehe: [1.15, 1.6], steil: [0.7, 1.3], blatt: [0.65, 0.85], dichte: [0.8, 1.25], farben: ['#6e4a10', '#d3a22c', '#ffe27c'], rinde: ['#4a443a', '#f1ecde'], ausreisser: ['#7ea63a', '#e39a2a', '#fff0a0'], form: [0.9, 1.5], streuung: [0.06, 0.2, 0.12] },
-  ahorn: { stamm: [2.8, 4.4], dicke: [0.5, 0.75], aeste: [4, 6], breite: [1.1, 1.6], hoehe: [0.8, 1.15], steil: [0.4, 0.85], blatt: [1.0, 1.3], dichte: [0.85, 1.25], farben: ['#5c1e0e', '#c85c1c', '#ffae38'], rinde: ['#3a2a1d', '#6a5038'], ausreisser: ['#b02a18', '#e8c040', '#6a8a2a'], form: [0.85, 1.25], streuung: [0.05, 0.24, 0.14] },
-  leucht: { stamm: [3.0, 5.0], dicke: [0.45, 0.7], aeste: [4, 5], breite: [0.9, 1.4], hoehe: [0.8, 1.2], steil: [0.4, 0.9], blatt: [0.9, 1.15], dichte: [0.8, 1.2], farben: ['#262048', '#4f4580', '#9a8fd2'], rinde: ['#2c2418', '#5a4630'], ausreisser: ['#7a4a9a', '#3a4a8a', '#b8a0e0'], form: [0.85, 1.3], streuung: [0.05, 0.2, 0.12] }
+  eiche: { stamm: [4.2, 7.0], dicke: [0.7, 1.1], aeste: [4, 6], breite: [1.0, 1.6], hoehe: [0.7, 1.05], steil: [0.35, 0.8], blatt: [0.9, 1.15], dichte: [0.85, 1.3], farben: ['#1a3418', '#3a6128', '#7d9f45'], rinde: ['#2c2118', '#5a4630'], ausreisser: ['#a6a838', '#2a4a22', '#c28a2a'], form: [0.8, 1.3], streuung: [0.05, 0.22, 0.12] },
+  birke: { stamm: [8.0, 12.5], dicke: [0.4, 0.6], aeste: [4, 6], breite: [0.6, 1.0], hoehe: [1.15, 1.6], steil: [0.7, 1.3], blatt: [0.65, 0.85], dichte: [0.8, 1.25], farben: ['#6e4a10', '#d3a22c', '#ffe27c'], rinde: ['#4a443a', '#f1ecde'], ausreisser: ['#7ea63a', '#e39a2a', '#fff0a0'], form: [0.9, 1.5], streuung: [0.06, 0.2, 0.12] },
+  ahorn: { stamm: [4.4, 7.0], dicke: [0.65, 0.95], aeste: [4, 6], breite: [1.1, 1.6], hoehe: [0.8, 1.15], steil: [0.4, 0.85], blatt: [1.0, 1.3], dichte: [0.85, 1.25], farben: ['#5c1e0e', '#c85c1c', '#ffae38'], rinde: ['#3a2a1d', '#6a5038'], ausreisser: ['#b02a18', '#e8c040', '#6a8a2a'], form: [0.85, 1.25], streuung: [0.05, 0.24, 0.14] },
+  leucht: { stamm: [4.5, 7.5], dicke: [0.6, 0.9], aeste: [4, 5], breite: [0.9, 1.4], hoehe: [0.8, 1.2], steil: [0.4, 0.9], blatt: [0.9, 1.15], dichte: [0.8, 1.2], farben: ['#262048', '#4f4580', '#9a8fd2'], rinde: ['#2c2418', '#5a4630'], ausreisser: ['#7a4a9a', '#3a4a8a', '#b8a0e0'], form: [0.85, 1.3], streuung: [0.05, 0.2, 0.12] }
 };
 /** Wachstumsregeln je Art (Ebenen: 0 Stamm, 1 Äste, 2 Zweige, 3 Zweigspitzen mit Blättern), nach dem Vorbild rekursiver Baumgeneratoren */
 const WACHSTUM: Record<Art, { laenge: [number, number, number]; kinder: [number, number, number]; winkel: [number, number, number]; kraft: [number, number, number]; knorrig: [number, number, number, number]; start: [number, number, number]; verjuengung: [number, number, number, number]; blaetter: number }> = {
-  eiche: { laenge: [4.4, 2.9, 1.7], kinder: [5, 4, 5], winkel: [62, 50, 45], kraft: [0.0, 0.0, -0.01], knorrig: [0.05, 0.14, 0.22, 0.26], start: [0.45, 0.25, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 16 },
-  birke: { laenge: [3.4, 2.2, 1.5], kinder: [6, 4, 4], winkel: [32, 38, 42], kraft: [0.05, 0.02, -0.04], knorrig: [0.04, 0.09, 0.16, 0.2], start: [0.4, 0.2, 0.1], verjuengung: [0.55, 0.65, 0.8, 0.9], blaetter: 13 },
-  ahorn: { laenge: [3.9, 2.6, 1.6], kinder: [5, 4, 5], winkel: [50, 48, 44], kraft: [0.02, 0.01, 0.0], knorrig: [0.05, 0.12, 0.2, 0.24], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
-  leucht: { laenge: [3.8, 2.5, 1.5], kinder: [5, 4, 4], winkel: [56, 46, 42], kraft: [0.01, 0.0, 0.0], knorrig: [0.06, 0.16, 0.24, 0.28], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 13 }
+  eiche: { laenge: [6.6, 4.4, 2.6], kinder: [5, 4, 5], winkel: [62, 50, 45], kraft: [0.0, 0.0, -0.01], knorrig: [0.05, 0.14, 0.22, 0.26], start: [0.45, 0.25, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 16 },
+  birke: { laenge: [5.0, 3.3, 2.2], kinder: [6, 4, 4], winkel: [32, 38, 42], kraft: [0.05, 0.02, -0.04], knorrig: [0.04, 0.09, 0.16, 0.2], start: [0.4, 0.2, 0.1], verjuengung: [0.55, 0.65, 0.8, 0.9], blaetter: 13 },
+  ahorn: { laenge: [5.9, 3.9, 2.4], kinder: [5, 4, 5], winkel: [50, 48, 44], kraft: [0.02, 0.01, 0.0], knorrig: [0.05, 0.12, 0.2, 0.24], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
+  leucht: { laenge: [5.7, 3.7, 2.3], kinder: [5, 4, 4], winkel: [56, 46, 42], kraft: [0.01, 0.0, 0.0], knorrig: [0.06, 0.16, 0.24, 0.28], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 13 }
 };
 /**
  * Laubbaum einer Art, prozedural je Variante, mit rekursiv wachsendem Gerüst: Stamm → Äste → Zweige → Zweigspitzen. Jede Ebene hat Länge, Dicke,
@@ -189,7 +195,7 @@ function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.Buffe
   mx /= punkte.length; my /= punkte.length; mz /= punkte.length; for (const [x, , z] of punkte) hx = Math.max(hx, Math.hypot(x - mx, z - mz));
   const farbe = kronenFarbe(my, Math.max(1.5, (ymax - ymin) / 2), Math.max(1.5, hx), s, d, m, h);
   const streu: Streuung = { h: P.streuung[0], s: P.streuung[1], l: P.streuung[2], form: P.form, aus: P.ausreisser.map((c) => new THREE.Color(c)), ausWahr: 0.14 + 0.1 * R(16) };
-  t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 1.5 : 2.4) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
+  t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 1.45 : 2.4) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
   { const kern = new THREE.Color(m).multiplyScalar(0.45); t.push(buschel(hx * 0.45, (ymax - ymin) * 0.22, hx * 0.45, mx, my, mz, s, () => kern, 1, 0.3)); }
   if (beeren) for (let i = 0; i < 8; i++) { const [x, y, z] = punkte[Math.floor(rz(i, 3, v, 5) * punkte.length)], aa = rz(i, 1, v, 5) * 6.28; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(x + Math.cos(aa) * 0.8, y + (rz(i, 2, v, 5) - 0.5), z + Math.sin(aa) * 0.8), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
   if (fein) for (let k = 0; k < 3 + Math.floor(R(10) * 3); k++) { const aa = k * 2.1 + R(11) * 6, dx = Math.cos(aa), dz = Math.sin(aa), l = 1.3 + R(12) * 0.8; t.push(ast(dx * 0.25, 0.15, dz * 0.25, dx * l, -0.3, dz * l, dicke * 0.45, dicke * 0.15, P.rinde, 5)); }
@@ -222,7 +228,7 @@ function farn(v: number, fein = true): THREE.BufferGeometry {
   const pos: number[] = [], nor: number[] = [], col: number[] = [], uv: number[] = [], idx: number[] = [], c = new THREE.Color();
   const n = fein ? 9 : 5;
   for (let k = 0; k < n; k++) {
-    const a = k * 2.399963 + v, len = 1.1 + 0.7 * rz(k, 1, v, 61), wd = 0.55 + 0.3 * rz(k, 2, v, 61), rise = 0.55 + 0.35 * rz(k, 3, v, 61), dx = Math.cos(a), dz = Math.sin(a), b0 = pos.length / 3;
+    const a = k * 2.399963 + v, len = 0.7 + 0.45 * rz(k, 1, v, 61), wd = 0.35 + 0.2 * rz(k, 2, v, 61), rise = 0.55 + 0.35 * rz(k, 3, v, 61), dx = Math.cos(a), dz = Math.sin(a), b0 = pos.length / 3;
     for (let r = 0; r < 4; r++) {
       const t = r / 3, px = dx * len * t, pz = dz * len * t, py = 0.12 + Math.sin(rise) * len * t * 1.1 - 0.9 * t * t * len * 0.5, w = wd * (0.35 + 0.65 * Math.sin(Math.PI * (0.15 + 0.7 * t)));
       for (const side of [-1, 1]) {
@@ -266,7 +272,7 @@ function tanne(v: number, fein = true): THREE.BufferGeometry {
   }
   const karte = new THREE.BufferGeometry(); karte.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); karte.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); karte.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); karte.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); karte.setIndex(idx);
   t.push(karte, fertig(new THREE.ConeGeometry(0.28, 1.5, 6).translate(0, hoehe - 0.3, 0), () => new THREE.Color('#3a6b45')));
-  return vereint(t, true);
+  const gr = vereint(t, true); gr.scale(1.45, 1.45, 1.45); return gr;
 }
 function busch(v: number, fein = true): THREE.BufferGeometry {
   const R = (i: number) => rz(i, v, 4, 80), s = v * 3.3 + 7, g = 0.75 + 0.6 * R(1), farbe = kronenFarbe(0.8, 0.9 * g, 1.5 * g, s, '#1f3d1f', '#3c6a2c', '#86a84a'), kern = new THREE.Color('#1f3d1f').multiplyScalar(0.6);
@@ -329,14 +335,14 @@ function halme(v: number, hoehe: number, breite: number, farben: [string, string
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
   return extra.length ? vereint([g, ...extra], true) : g;
 }
-function gras(v: number): THREE.BufferGeometry { return halme(v, 0.45 + 0.55 * rz(v, 1, 1, 86), 0.7 + 0.5 * rz(v, 2, 1, 86), GRAS_FARBEN[v % GRAS_FARBEN.length], 3 + (v % 2)); }
+function gras(v: number): THREE.BufferGeometry { return halme(v, 0.2 + 0.3 * rz(v, 1, 1, 86), 0.45 + 0.3 * rz(v, 2, 1, 86), GRAS_FARBEN[v % GRAS_FARBEN.length], 3 + (v % 2)); }
 /** Wiesenblume: Halmbüschel mit einem bis drei Stielen und Blütenköpfen (Kugel mit Blütenblattkranz) */
 function blume(v: number, farbe: string): THREE.BufferGeometry {
   const t: THREE.BufferGeometry[] = [], f = new THREE.Color(farbe), n = 1 + Math.floor(rz(v, 1, 2, 86) * 3);
-  for (let k = 0; k < n; k++) { const h = 0.5 + 0.5 * rz(k, v, 3, 86), x = (rz(k, v, 4, 86) - 0.5) * 0.4, z = (rz(k, v, 5, 86) - 0.5) * 0.4; t.push(ast(x, 0, z, x + 0.03, h, z, 0.02, 0.014, ['#3d6a2c', '#5a8a3a'], 4));
+  for (let k = 0; k < n; k++) { const h = 0.28 + 0.3 * rz(k, v, 3, 86), x = (rz(k, v, 4, 86) - 0.5) * 0.3, z = (rz(k, v, 5, 86) - 0.5) * 0.3; t.push(ast(x, 0, z, x + 0.03, h, z, 0.02, 0.014, ['#3d6a2c', '#5a8a3a'], 4));
     t.push(fertig(new THREE.IcosahedronGeometry(0.06, 0).translate(x + 0.03, h + 0.04, z), () => new THREE.Color('#e8c030')));
     for (let p = 0; p < 6; p++) { const a = p * 1.047, pg = new THREE.SphereGeometry(0.05, 5, 3); pg.scale(1.4, 0.35, 0.8); pg.rotateY(-a); pg.translate(x + 0.03 + Math.cos(a) * 0.075, h + 0.035, z + Math.sin(a) * 0.075); t.push(fertig(pg, () => f.clone().multiplyScalar(0.9 + 0.3 * rz(p, k, v, 87)))); } }
-  return halme(v + 3, 0.5, 0.7, GRAS_FARBEN[v % GRAS_FARBEN.length], 3, t);
+  return halme(v + 3, 0.28, 0.45, GRAS_FARBEN[v % GRAS_FARBEN.length], 3, t);
 }
 /** Schilf: hohe Halmbüschel mit braunen Kolben, wächst am Ufer */
 function schilf(v: number, fein = true): THREE.BufferGeometry {
