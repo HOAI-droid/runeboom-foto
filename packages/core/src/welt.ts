@@ -28,12 +28,13 @@ export interface Ort { typ: 'riss' | 'kristall'; x: number; z: number; r: number
 let SEED = 4127;
 let ORTE: Ort[] | null = null;
 const roheCache = new Map<number, ReturnType<typeof rohBerechnen>>();
-export function setzeSeed(s: number): void { SEED = s; ORTE = null; roheCache.clear(); HOEHEN.clear(); }
+const eckenCache = new Map<number, number>();
+export function setzeSeed(s: number): void { SEED = s; ORTE = null; roheCache.clear(); HOEHEN.clear(); eckenCache.clear(); }
 /** eingeebnetes Gelände: Kachel → neue Höhe */
 const HOEHEN = new Map<number, number>();
 const hk = (x: number, z: number) => (x + 600) * 2048 + (z + 600);
-export function setzeHoehe(x: number, z: number, h: number): void { HOEHEN.set(hk(x, z), h); }
-export function hoehenLeeren(): void { HOEHEN.clear(); }
+export function setzeHoehe(x: number, z: number, h: number): void { HOEHEN.set(hk(x, z), h); if (eckenCache.size) eckenCache.clear(); }
+export function hoehenLeeren(): void { HOEHEN.clear(); if (eckenCache.size) eckenCache.clear(); }
 export function hoehenListe(): [number, number][] { return [...HOEHEN]; }
 export function hoeheGeaendert(x: number, z: number): number | undefined { return HOEHEN.get(hk(x, z)); }
 export function seed(): number { return SEED; }
@@ -125,3 +126,30 @@ export function istWald(x: number, z: number, s: Spalte): boolean { return s.a =
 /** Kann man hier gehen? (keine Becken, keine hohen Felsen) */
 export function begehbar(s: Spalte | null): boolean { return !!s && s.a !== 'w' && s.a !== 'l' && s.h < 14; }
 export function hoehe(x: number, z: number): number { const s = spalte(Math.floor(x), Math.floor(z)); return s ? s.h + 1 : 0; }
+
+// ---------- glattes Gelände (nur Darstellung; die Simulation rechnet weiter mit hoehe()) ----------
+/** Wasser- und Lavaspiegel (Oberkante der Becken liegt tiefer, damit Ufer sanft ansteigen) */
+export const WASSER_Y = 6.72, LAVA_Y = 6.62;
+/** Oberkante einer Spalte für das glatte Gelände; Becken liegen etwas tiefer; −1000 = kein Land */
+function oben(x: number, z: number): number {
+  const r = roh(x, z); if (!r) return -1000;
+  if (r.a === 'w') return r.h + 0.5; if (r.a === 'l') return r.h + 0.6;
+  const ov = HOEHEN.size ? HOEHEN.get(hk(x, z)) : undefined;
+  return (ov !== undefined ? ov : r.h) + 1;
+}
+const GW = [0.1, 0.4, 0.4, 0.1];
+/** Höhe der Ecke (i, j) zwischen den vier Spalten i−1…i × j−1…j: gewichteter Mittelwert über 4 × 4 Spalten (Stufen werden zu Hängen) */
+export function eckeHoehe(i: number, j: number): number {
+  const k = hk(i, j), c = eckenCache.get(k); if (c !== undefined) return c;
+  let s = 0, w = 0;
+  for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) { const t = oben(i - 2 + a, j - 2 + b); if (t < -900) continue; const g = GW[a] * GW[b]; s += t * g; w += g; }
+  const v = w > 0 ? s / w : 6;
+  if (eckenCache.size > 250000) eckenCache.clear();
+  eckenCache.set(k, v); return v;
+}
+/** Höhe des glatten Geländes an einer beliebigen Stelle (zweilinear zwischen den Ecken) */
+export function bodenHoehe(x: number, z: number): number {
+  const i = Math.floor(x), j = Math.floor(z), fx = x - i, fz = z - j;
+  const a = eckeHoehe(i, j), b = eckeHoehe(i + 1, j), c = eckeHoehe(i, j + 1), d = eckeHoehe(i + 1, j + 1);
+  return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
+}

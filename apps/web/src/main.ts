@@ -1401,11 +1401,11 @@ renderer.setAnimationLoop(() => {
       let d = 0.5 - 0.5 * Math.cos(menueZeit * 2 * Math.PI / 70);
       if (prolog) { anzeigeDunkel += (prologSchritt(dt) - anzeigeDunkel) * Math.min(1, dt * 0.9); d = anzeigeDunkel; }
       jahreszeit(menueZeit / 60);
-      licht.setze(Math.min(1, d * 1.15)); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
+      licht.setze(Math.min(1, d * 1.15)); post.setze(licht); welt.nebelFarbe(licht.werte.nebel, licht.werte.dunst);
       obj.bild(dt, (x, z) => spiel!.licht(x, z), d > 0.5, camera, 0);
       if (!prolog) menueKamera(enth.aktiv && enth.phase === 0 ? 0 : dt);
       const dist = camera.position.distanceTo(controls.target);
-      licht.fog.far = 360 + dist * 2.4; licht.fog.near = licht.fog.far * 0.45; licht.folge(controls.target, camera);
+      licht.fog.far = 330 + dist * 2.2; licht.fog.near = licht.fog.far * 0.3; licht.folge(controls.target, camera);
       planZeit -= dt; if (planZeit <= 0) { welt.planen(controls.target, dist, camera); planZeit = 0.25; }
       zeichnen();
       return;
@@ -1478,7 +1478,7 @@ renderer.setAnimationLoop(() => {
     if (lichtNeu || kegelNeu) lichtkarteSetzen(spiel.lichtquellen(), lichtNeu, anzeigeDunkel > 0.3);
     const dunkelZiel = prolog ? prologSchritt(dt) : spiel.dunkel();
     anzeigeDunkel += (dunkelZiel - anzeigeDunkel) * Math.min(1, dt * (prolog ? 0.9 : 1.5));
-    licht.setze(anzeigeDunkel); post.setze(licht); welt.nebelFarbe(licht.werte.nebel);
+    licht.setze(anzeigeDunkel); post.setze(licht); welt.nebelFarbe(licht.werte.nebel, licht.werte.dunst);
     const wegStaerke = spiel.phase === 'tag' ? (spiel.abend() ? 1 : werkzeug ? 0.6 : 0.3) : 0;
     obj.bild(tempo ? dt * Math.min(tempo, 2) : 0, (x, z) => spiel!.licht(x, z), anzeigeDunkel > 0.5, camera, wegStaerke);
     { const h = spiel.haupt; let nah = 0; if (h) for (const g of spiel.gegner) if (Math.hypot(g.x - h.x - 6, g.z - h.z - 6) < 45) nah++; klang.setzeVolk(spiel.volk); klang.stimmung(spiel.phase === 'nacht', nah / 25, spiel.abend(), spiel.phase === 'nacht' && spiel.gegner.some((e) => e.typ === 'rissfuerst')); }
@@ -1495,7 +1495,7 @@ renderer.setAnimationLoop(() => {
     const tg = controls.target, cx = THREE.MathUtils.clamp(tg.x, -WR + 20, WR - 20), cz = THREE.MathUtils.clamp(tg.z, -WR + 20, WR - 20);
     if (cx !== tg.x || cz !== tg.z) { const d = new THREE.Vector3(cx - tg.x, 0, cz - tg.z); tg.add(d); camera.position.add(d); }
     const dist = camera.position.distanceTo(tg);
-    licht.fog.far = 360 + dist * 2.4; licht.fog.near = licht.fog.far * 0.45;
+    licht.fog.far = 330 + dist * 2.2; licht.fog.near = licht.fog.far * 0.3;
     licht.folge(tg, camera);
     planZeit -= dt; if (planZeit <= 0) { welt.planen(tg, dist, camera); planZeit = 0.25; }
     uiZeit -= dt; if (uiZeit <= 0) { anzeige(); zeichneKarte(); uiZeit = 0.15; }

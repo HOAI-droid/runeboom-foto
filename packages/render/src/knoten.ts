@@ -109,18 +109,19 @@ function himmel(u: { uTop: { value: THREE.Color }; uBot: { value: THREE.Color };
 }
 function nebel(u: NebelU, lage: number, zahl: number): THREE.Material {
   const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, fog: false });
-  const farbe = uniform(u.uFarbe.value), dichte = uniform(0).onFrameUpdate(() => u.uDichte.value);
+  const farbe = uniform(u.uFarbe.value), dichte = uniform(0).onFrameUpdate(() => u.uDichte.value), dunstU = uniform(0).onFrameUpdate(() => u.uDunst.value);
   const land = varying(attribute('aLand', 'float'));
   const gross = varying(fbm(positionWorld.xz.mul(0.0065).add(vec2(uZeit.mul(0.006), uZeit.mul(-0.004)))));
   m.colorNode = Fn(() => {
     const n = float(0).toVar(), a = float(0).toVar();
     If(land.lessThan(0.01), () => { Discard(); });
     const frei = smoothstep(0.2, 0.8, texture(u.uMaske.value, weltUV(positionWorld)).r);
-    If(frei.greaterThan(0.995), () => { Discard(); });
+    If(frei.greaterThan(0.995).and(dunstU.lessThan(0.01)), () => { Discard(); });
     const p = positionWorld.xz.mul(0.03).add(vec2(uZeit.mul(0.012 * (1 + lage * 0.3)), uZeit.mul(0.007))).add(lage * 3.7);
     n.assign(fbm3(p));
     const wechsel = mix(0.4, 1.25, smoothstep(0.32, 0.72, gross)).mul(sin(uZeit.mul(0.21).add(gross.mul(9))).mul(0.12).add(0.88));
-    const a0 = dichte.mul(n.mul(0.9).add(0.45)).mul(wechsel).mul(frei.oneMinus()).mul(land).mul(1 - lage * 0.06);
+    const dunst = frei.mul(dunstU).mul(smoothstep(0.38, 0.72, gross)).mul(n.mul(0.8).add(0.6));
+    const a0 = dichte.mul(n.mul(0.9).add(0.45)).mul(wechsel).mul(frei.oneMinus().add(dunst)).mul(land).mul(1 - lage * 0.06);
     a.assign(pow(clamp(a0, 0, 0.98).oneMinus(), zahl).oneMinus());
     If(a.lessThan(0.01), () => { Discard(); });
     return vec4(farbe.mul(n.mul(0.18).add(0.9)), a);

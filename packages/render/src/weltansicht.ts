@@ -26,8 +26,9 @@ export class WeltAnsicht {
   private nebelSchichten: THREE.Mesh[] = [];
   private nebelMaske = new Uint8Array(NN * NN);
   private nebelTex = new THREE.DataTexture(this.nebelMaske, NN, NN, THREE.RedFormat, THREE.UnsignedByteType);
-  readonly NEBEL_U = { uZeit: ZEIT, uMaske: { value: this.nebelTex }, uFarbe: { value: new THREE.Color('#efe9dd') }, uDichte: { value: 0.24 } };
+  readonly NEBEL_U = { uZeit: ZEIT, uMaske: { value: this.nebelTex }, uFarbe: { value: new THREE.Color('#efe9dd') }, uDichte: { value: 0.24 }, uDunst: { value: 0 } };
   private UEBER: THREE.Material;
+  private BODEN: THREE.Material;
   onUebersicht: () => void = () => {};
   /** Änderungen am Bewuchs einer Kachel (gefällte Bäume, abgebaute Felsen) */
   aenderungen: (cx: number, cz: number) => [number, number, string][] = () => [];
@@ -42,7 +43,8 @@ export class WeltAnsicht {
     this.maskeTex.magFilter = this.maskeTex.minFilter = THREE.NearestFilter; this.maskeTex.needsUpdate = true;
     this.nebelTex.magFilter = this.nebelTex.minFilter = THREE.LinearFilter;
     const mt = this.maskeTex;
-    this.UEBER = FABRIK.licht({ vertexColors: true, roughness: 0.92 }, 1.2, mt, 0.25);
+    this.UEBER = FABRIK.licht({ vertexColors: true, roughness: 0.96 }, 1.2, mt, 0.25);
+    this.BODEN = FABRIK.licht({ vertexColors: true, roughness: 0.97, metalness: 0 }, 1.2);
     const zahl = Math.min(3, Math.max(1, (navigator.hardwareConcurrency || 4) - 1));
     try { for (let i = 0; i < zahl; i++) { const w = new WeltRechner(); w.onmessage = (e) => this.antwort(w, e.data); w.postMessage({ art: 'seed', seed }); this.rechner.push(w); this.frei.push(w); } }
     catch (e) { console.warn('Kein Hintergrund-Rechner, baue auf der Seite', e); }
@@ -69,6 +71,11 @@ export class WeltAnsicht {
     if (this.neuBauen.has(k)) { this.neuBauen.delete(k); setTimeout(() => this.kachelNeu(cx, cz), 0); }
     const grp = new THREE.Group(); grp.position.set(cx * CH, 0, cz * CH);
     const netz = zuGruppe(r.grob, 1); if (stufe < 3) netz.traverse((o) => { o.castShadow = false; }); grp.add(netz);
+    if (r.boden) { // glatter Boden (Foto-Look)
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(r.boden.p, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(r.boden.n, 3)); geo.setAttribute('color', new THREE.BufferAttribute(r.boden.c, 3)); geo.setIndex(new THREE.BufferAttribute(r.boden.i, 1));
+      geo.computeBoundingSphere(); const m = new THREE.Mesh(geo, this.BODEN); m.castShadow = stufe >= 3; m.receiveShadow = true; grp.add(m);
+    }
     if (r.natur.length) for (const o of baueNatur(r.natur, stufe >= 3)) grp.add(o);
     const extra: THREE.Object3D[] = [];
     if (r.wasser.length) extra.push(becken(r.wasser, WASSER)); if (r.lava.length) extra.push(becken(r.lava, LAVA));
@@ -226,7 +233,8 @@ export class WeltAnsicht {
     for (let i = 0; i < NN; i++) for (let j = 0; j < NN; j++) this.nebelMaske[j * NN + i] = this.erkundet[i * NN + j] ? 255 : 0;
     this.nebelTex.needsUpdate = true;
   }
-  nebelFarbe(c: THREE.Color): void { this.NEBEL_U.uFarbe.value.copy(c); }
+  /** Farbe des Bodennebels und Dunst über Erkundetem (0 = keiner; in niedriger Grafik immer aus) */
+  nebelFarbe(c: THREE.Color, dunst = 0): void { this.NEBEL_U.uFarbe.value.copy(c); this.NEBEL_U.uDunst.value = this.detail < 0.7 ? 0 : dunst; }
 
   /** Farbbild der Übersichtskarte (N × N), Unerkundetes als Dunst */
   kartenBild(ctx: CanvasRenderingContext2D): void {

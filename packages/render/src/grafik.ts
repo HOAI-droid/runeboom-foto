@@ -3,8 +3,10 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { WR } from '@runeboom/core';
+import { WR, bodenHoehe } from '@runeboom/core';
 import { meshVoxels, type Grid, type MeshDaten } from './voxel.ts';
+
+const rz = (x: number, y: number, z: number, s: number): number => { const v = Math.sin(x * 127.1 + y * 311.7 + z * 74.7 + s * 19.3) * 43758.5453; return v - Math.floor(v); };
 
 // ================= Lichtkarte: jeder Block weiß, wie hell ihn Fackeln und Leuchttürme machen =================
 const LK = 2 * WR;
@@ -86,7 +88,7 @@ export const FABRIK = {
   kegel: (): THREE.Material => kegelGL(),
   post: (renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, tilt: number): Post => new Nachbearbeitung(renderer, scene, camera, tilt)
 };
-export interface NebelU { uZeit: { value: number }; uMaske: { value: THREE.Texture }; uFarbe: { value: THREE.Color }; uDichte: { value: number } }
+export interface NebelU { uZeit: { value: number }; uMaske: { value: THREE.Texture }; uFarbe: { value: THREE.Color }; uDichte: { value: number }; uDunst: { value: number } }
 export interface Post { tilt: boolean; groesse(w: number, h: number): void; setze(b: Beleuchtung): void; render(): void }
 
 // ================= Materialien =================
@@ -172,15 +174,16 @@ const nebelGL = (u: NebelU, lage: number, zahl: number) => new THREE.ShaderMater
     void main(){ vLand = aLand; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz;
       vGross = aLand > 0.0 ? fbm(w.xz * 0.0065 + vec2(uZeit * 0.006, -uZeit * 0.004)) : 0.0;
       gl_Position = projectionMatrix * viewMatrix * w; }`,
-  fragmentShader: `uniform float uZeit, uDichte, uLage, uZahl; uniform vec3 uFarbe; uniform sampler2D uMaske; varying float vLand, vGross; varying vec3 vW; ${NOISE_GLSL}
+  fragmentShader: `uniform float uZeit, uDichte, uLage, uZahl, uDunst; uniform vec3 uFarbe; uniform sampler2D uMaske; varying float vLand, vGross; varying vec3 vW; ${NOISE_GLSL}
     void main(){
       if (vLand < 0.01) discard;
       float frei = smoothstep(0.2, 0.8, texture2D(uMaske, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r);
-      if (frei > 0.995) discard;
+      if (frei > 0.995 && uDunst < 0.01) discard;
       vec2 p = vW.xz * 0.03 + vec2(uZeit * 0.012 * (1.0 + uLage * 0.3), uZeit * 0.007) + uLage * 3.7;
       float n = fbm3(p);
       float wechsel = mix(0.4, 1.25, smoothstep(0.32, 0.72, vGross)) * (0.88 + 0.12 * sin(uZeit * 0.21 + vGross * 9.0));
-      float a = uDichte * (0.45 + 0.9 * n) * wechsel * (1.0 - frei) * vLand * (1.0 - uLage * 0.06);
+      float dunst = frei * uDunst * smoothstep(0.38, 0.72, vGross) * (0.6 + 0.8 * n); // Schwaden über Erkundetem
+      float a = uDichte * (0.45 + 0.9 * n) * wechsel * ((1.0 - frei) + dunst) * vLand * (1.0 - uLage * 0.06);
       a = 1.0 - pow(1.0 - clamp(a, 0.0, 0.98), uZahl);
       if (a < 0.01) discard;
       gl_FragColor = vec4(uFarbe * (0.9 + 0.18 * n), a);
@@ -205,9 +208,9 @@ export function becken(zellen: Float32Array, mat: THREE.Material): THREE.Mesh {
 }
 
 // ================= Tag und Nacht =================
-export interface Stimmung { top: string; bot: string; fog: string; sun: string; sunI: number; sunP: [number, number, number]; hemiS: string; hemiG: string; hemiI: number; exp: number; glow: number; lamp: number; tint: string; bloom: number; wasser: [string, string, string]; nebel: string }
-export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffc27a', sunI: 3.4, sunP: [-50, 42, 34], hemiS: '#a9c4ff', hemiG: '#6b4a2f', hemiI: 1.15, exp: 1.0, glow: 0.62, lamp: 0.3, tint: '#ffd9a8', bloom: 0.32, wasser: ['#1f5a6e', '#4fa3b3', '#ffe2b0'], nebel: '#efe9dd' };
-export const NACHT: Stimmung = { top: '#060b1e', bot: '#24386a', fog: '#1b2a52', sun: '#9db4ff', sunI: 1.2, sunP: [44, 58, -24], hemiS: '#4a63a8', hemiG: '#16122a', hemiI: 0.5, exp: 1.1, glow: 0.7, lamp: 0.8, tint: '#c8d6ff', bloom: 0.28, wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#55607e' };
+export interface Stimmung { top: string; bot: string; fog: string; sun: string; sunI: number; sunP: [number, number, number]; hemiS: string; hemiG: string; hemiI: number; exp: number; glow: number; lamp: number; tint: string; bloom: number; wasser: [string, string, string]; nebel: string; dunst: number }
+export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffc27a', sunI: 3.4, sunP: [-50, 42, 34], hemiS: '#a9c4ff', hemiG: '#6b4a2f', hemiI: 1.15, exp: 1.0, glow: 0.62, lamp: 0.3, tint: '#ffd9a8', bloom: 0.32, wasser: ['#1f5a6e', '#4fa3b3', '#ffe2b0'], nebel: '#f6e4c4', dunst: 0.34 };
+export const NACHT: Stimmung = { top: '#060b1e', bot: '#24386a', fog: '#1b2a52', sun: '#9db4ff', sunI: 1.2, sunP: [44, 58, -24], hemiS: '#4a63a8', hemiG: '#16122a', hemiI: 0.5, exp: 1.1, glow: 0.7, lamp: 0.8, tint: '#c8d6ff', bloom: 0.28, wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#55607e', dunst: 0.16 };
 const c1 = new THREE.Color(), c2 = new THREE.Color();
 const mixC = (a: string, b: string, t: number, out: THREE.Color) => out.copy(c1.set(a)).lerp(c2.set(b), t);
 
@@ -221,19 +224,64 @@ export class Himmel {
   setze(top: THREE.Color, bot: THREE.Color, fog: THREE.Color) { this.u.uTop.value.copy(top); this.u.uBot.value.copy(bot); this.u.uFog.value.copy(fog); }
 }
 
+/** Textur eines Lichtstrahls: weich nach oben und unten, an den Rändern ausgeblendet, längs fein gestreift */
+function strahlTex(): THREE.CanvasTexture {
+  const W = 128, H = 512, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d')!, img = c.createImageData(W, H);
+  const glatt = (a: number, b: number, t: number) => { const u = Math.min(1, Math.max(0, (t - a) / (b - a))); return u * u * (3 - 2 * u); };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const t = 1 - y / (H - 1), u = x / (W - 1), quer = glatt(0, 0.5, 1 - Math.abs(2 * u - 1)), laengs = glatt(0, 0.16, t) * (1 - glatt(0.5, 1, t));
+    const streif = 0.55 + 0.25 * (Math.sin(u * 61 + Math.sin(u * 17) * 2.3) * 0.5 + 0.5) + 0.2 * (Math.sin(u * 23 + 1.7) * 0.5 + 0.5);
+    const a = quer * quer * laengs * streif, o = (y * W + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.round(255 * a);
+  }
+  c.putImageData(img, 0, 0); const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; return tex;
+}
+/**
+ * Sonnenstrahlen durchs Laub: wenige lange, weiche Lichtbahnen, an der Welt verankert (Raster 36 m um den Blickpunkt), ein- und ausgeblendet.
+ * Gewöhnliche Standardmaterialien (Additiv), laufen daher bei WebGL und WebGPU; nur ein Hauch, die Wirkung kommt vom Bloom.
+ */
+export class Lichtstrahlen {
+  readonly gruppe = new THREE.Group();
+  private slots: { grp: THREE.Group; mat: THREE.MeshBasicMaterial }[] = [];
+  private static readonly Z = 36;
+  constructor() {
+    const tex = strahlTex(), geo = new THREE.PlaneGeometry(1, 1); this.gruppe.renderOrder = 5;
+    for (let k = 0; k < 16; k++) {
+      const mat = new THREE.MeshBasicMaterial({ map: tex, color: '#ffe0aa', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide });
+      const grp = new THREE.Group(), a = new THREE.Mesh(geo, mat), b = new THREE.Mesh(geo, mat); b.rotation.y = Math.PI / 2; a.renderOrder = b.renderOrder = 5; a.frustumCulled = b.frustumCulled = false;
+      grp.add(a, b); grp.visible = false; this.gruppe.add(grp); this.slots.push({ grp, mat });
+    }
+  }
+  /** sonne: Einheitsvektor zur Sonne; nacht 0…1 */
+  update(ziel: THREE.Vector3, sonne: THREE.Vector3, nacht: number, zeit: number): void {
+    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.26 + nacht * 0.04;
+    const x = new THREE.Vector3(-sonne.z, 0, sonne.x).normalize(), z = new THREE.Vector3().crossVectors(x, sonne), m = new THREE.Matrix4().makeBasis(x, sonne, z), q = new THREE.Quaternion().setFromRotationMatrix(m);
+    const farbe = new THREE.Color().set('#ffe0aa').lerp(new THREE.Color('#9db4ff'), Math.min(1, nacht * 1.4));
+    for (let a = -2; a < 2; a++) for (let b = -2; b < 2; b++) {
+      const gx = gx0 + a, gz = gz0 + b, slot = this.slots[(((gx % 4) + 4) % 4) * 4 + (((gz % 4) + 4) % 4)], h1 = rz(gx, gz, 1, 71), h2 = rz(gx, gz, 2, 71), h3 = rz(gx, gz, 3, 71), h4 = rz(gx, gz, 4, 71), h5 = rz(gx, gz, 5, 71);
+      const px = (gx + 0.15 + 0.7 * h2) * Z, pz = (gz + 0.15 + 0.7 * h3) * Z, d = Math.hypot(px - ziel.x, pz - ziel.z), f = 1 - Math.min(1, Math.max(0, (d - 50) / 45));
+      const o = h1 < 0.6 ? st * f * (0.7 + 0.3 * Math.sin(zeit * 0.22 + h5 * 20)) * (0.6 + 0.8 * h4) : 0;
+      slot.mat.opacity = o; slot.mat.color.copy(farbe); slot.grp.visible = o > 0.002; if (!slot.grp.visible) continue;
+      const breite = 5 + 9 * h4, laenge = 60 + 30 * h5, y0 = bodenHoehe(px, pz) - 4;
+      slot.grp.position.set(px + sonne.x * (laenge / 2 - 4), y0 + sonne.y * (laenge / 2 - 4), pz + sonne.z * (laenge / 2 - 4)); slot.grp.quaternion.copy(q);
+      slot.grp.children[0].scale.set(breite, laenge, 1); slot.grp.children[1].scale.set(breite, laenge, 1);
+    }
+  }
+}
+
 /** Licht der Szene; folgt der Kamera, damit die Schatten scharf bleiben */
 export class Beleuchtung {
   sun = new THREE.DirectionalLight('#fff', 3); hemi = new THREE.HemisphereLight('#fff', '#000', 1); front = new THREE.DirectionalLight('#fff', 0.35);
   himmel = new Himmel(); fog = new THREE.Fog('#e7b48a', 200, 520);
   private richtung = new THREE.Vector3(1, 1, 1);
   private tmp = { top: new THREE.Color(), bot: new THREE.Color(), fog: new THREE.Color(), sun: new THREE.Color(), hs: new THREE.Color(), hg: new THREE.Color() };
-  werte = { exp: 1, bloom: 0.3, tint: new THREE.Color(), nebel: new THREE.Color() };
+  werte = { exp: 1, bloom: 0.3, tint: new THREE.Color(), nebel: new THREE.Color(), dunst: 0 };
+  strahlen = new Lichtstrahlen(); private nachtD = 0;
   constructor(scene: THREE.Scene, ausdehnung = 60) {
     const s = this.sun; s.castShadow = true; s.shadow.mapSize.set(2048, 2048);
     Object.assign(s.shadow.camera, { left: -ausdehnung, right: ausdehnung, top: ausdehnung, bottom: -ausdehnung, near: 80, far: 240 }); // nur ±80 m um den Blickpunkt entlang des Lichts: weniger Kacheln im Schattenbild
     s.shadow.bias = -0.0005; s.shadow.normalBias = 0.03; s.shadow.radius = 4;
     this.front.position.set(30, 40, 60);
-    scene.add(s, s.target, this.hemi, this.front, this.himmel.mesh);
+    scene.add(s, s.target, this.hemi, this.front, this.himmel.mesh, this.strahlen.gruppe);
     scene.fog = this.fog;
   }
   /** d: 0 = Tag, 1 = Nacht */
@@ -249,11 +297,12 @@ export class Beleuchtung {
     mixC(A.wasser[0], N.wasser[0], d, WASSER_U.uTief.value); mixC(A.wasser[1], N.wasser[1], d, WASSER_U.uHell.value); mixC(A.wasser[2], N.wasser[2], d, WASSER_U.uFunkeln.value);
     LICHT_U.uNacht.value = Math.max(0, (d - 0.25) / 0.75);
     this.werte.exp = A.exp + (N.exp - A.exp) * d; this.werte.bloom = A.bloom + (N.bloom - A.bloom) * d;
-    mixC(A.tint, N.tint, d, this.werte.tint); mixC(A.nebel, N.nebel, d, this.werte.nebel);
+    mixC(A.tint, N.tint, d, this.werte.tint); mixC(A.nebel, N.nebel, d, this.werte.nebel); this.werte.dunst = A.dunst + (N.dunst - A.dunst) * d; this.nachtD = d;
   }
   folge(p: THREE.Vector3, cam: THREE.Camera): void {
     this.sun.target.position.copy(p); this.sun.position.copy(p).addScaledVector(this.richtung, 160);
     this.himmel.mesh.position.copy(cam.position);
+    this.strahlen.update(p, this.richtung, this.nachtD, ZEIT.value);
   }
 }
 

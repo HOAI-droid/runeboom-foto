@@ -1,11 +1,12 @@
-import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, type Spalte } from '@runeboom/core';
+import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, bodenHoehe, type Spalte } from '@runeboom/core';
 import { Grid, meshVoxels, srgbLin, type MeshDaten, type Voxel } from './voxel.ts';
 import { baum, fels, kristalle, riss, stumpf, setzling } from './modelle.ts';
 import { GLATT } from './schalter.ts';
+import { bodenNetz, beckenZellen, uebersichtNetz, type BodenNetz } from './gelaende.ts';
 
 const NAT_ART: Record<string, number> = { laub: 0, tanne: 1, herbst: 2, leucht: 3, busch: 4, tot: 5 };
 
-export interface ChunkDaten { grob: (MeshDaten | null)[]; fein: (MeshDaten | null)[]; wasser: Float32Array; lava: Float32Array; natur: Float32Array }
+export interface ChunkDaten { grob: (MeshDaten | null)[]; fein: (MeshDaten | null)[]; wasser: Float32Array; lava: Float32Array; natur: Float32Array; boden: BodenNetz | null }
 
 /** Eine Kachel (32 × 32 Blöcke) bauen: Boden, Becken, Pflanzen, Kristallfelder, Risse. Läuft im Hintergrund-Rechner. */
 /**
@@ -20,6 +21,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
   const S = (x: number, z: number) => { const k = x * 4096 + z; let v = cache.get(k); if (v === undefined) { v = spalte(x, z); cache.set(k, v); } return v; };
   const wasser: number[] = [], lava: number[] = [], natur: number[] = [];
   for (let x = ox - 1; x <= ox + CH; x++) for (let z = oz - 1; z <= oz + CH; z++) {
+    if (GLATT.an) break; // glatter Boden: siehe gelaende.ts
     const s = S(x, z); if (!s) continue;
     const asch = s.a === 'asche' || s.a === 'l', innen = x >= ox && x < ox + CH && z >= oz && z < oz + CH;
     // Seitenwände bis zum tiefsten Nachbarn, damit an Stufen (auch geebneten) keine Lücken bleiben
@@ -32,6 +34,8 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     if (innen && s.a === 'w') wasser.push(x, s.h + 1.72, z);
     if (innen && s.a === 'l') lava.push(x, s.h + 1.62, z);
   }
+  let boden: BodenNetz | null = null;
+  if (GLATT.an) { boden = bodenNetz(cx, cz, stufe >= 3, S); const b = beckenZellen(cx, cz, S); wasser.push(...b.wasser); lava.push(...b.lava); }
   const fein = (x: number, z: number): [number, number, number] => { const s = S(x, z); return [2 * x + 1, 2 * ((s ? s.h : 6) + 1), 2 * z + 1]; };
   const r = rng((cx * 7919 + cz * 104729 + seed()) >>> 0);
   if (stufe >= 2) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) {
@@ -42,10 +46,12 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     if (zu === 'weg' && dk.art !== 'gras') continue;
     if (dk.art === 'baum' && zu) { if (zu === 'stumpf') stumpf(F, X, Y, Z, dk.typ); else setzling(F, X, Y, Z, r, dk.typ); continue; }
     if (GLATT.an && (dk.art !== 'gras' || stufe >= 3)) { // glatte Natur: nur Zahlen für die Darstellung (siehe natur.ts)
-      const lx = x - ox + 0.5, ly = s.h + 1, lz = z - oz + 0.5, dreh = r() * 6.283, v = Math.floor(r() * 3), asche = s.a === 'asche' ? 1 : 0;
-      if (dk.art === 'baum') natur.push(NAT_ART[dk.typ] ?? 0, lx, ly, lz, dreh, 0.85 + r() * 0.4, v, 0);
+      // Stelle in der Kachel mit leichtem Versatz (nicht auf dem Blockraster), Höhe aus dem glatten Boden
+      const lx = x - ox + 0.2 + r() * 0.6, lz = z - oz + 0.2 + r() * 0.6, ly = bodenHoehe(x + (lx - (x - ox)), z + (lz - (z - oz))), dreh = r() * 6.283, v = Math.floor(r() * 3), asche = s.a === 'asche' ? 1 : 0;
+      const hoeheAn = (qx: number, qz: number) => bodenHoehe(ox + qx, oz + qz);
+      if (dk.art === 'baum') natur.push(NAT_ART[dk.typ] ?? 0, lx, ly - 0.1, lz, dreh, 0.85 + r() * 0.4, v, 0);
       else if (dk.art === 'fels') natur.push(6, lx, ly, lz, dreh, 0.8 + r() * 0.8, v, asche);
-      else if (r() < 0.75) { natur.push(7, lx - 0.25, ly, lz - 0.2, dreh, 0.8 + r() * 0.6, v, 0); if (r() > 0.4) natur.push(7, lx + 0.3, ly, lz + 0.25, dreh + 2, 0.7 + r() * 0.5, v + 1, 0); }
+      else if (r() < 0.75) { natur.push(7, lx - 0.25, hoeheAn(lx - 0.25, lz - 0.2), lz - 0.2, dreh, 0.8 + r() * 0.6, v, 0); if (r() > 0.4) natur.push(7, lx + 0.3, hoeheAn(lx + 0.3, lz + 0.25), lz + 0.25, dreh + 2, 0.7 + r() * 0.5, v + 1, 0); }
       else natur.push(8, lx, ly, lz, dreh, 0.9 + r() * 0.3, v, 0);
       continue;
     }
@@ -75,10 +81,10 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
       if (!alt || (v.e !== 0 && alt.e === 0) || (v.y > alt.y * 2 + 1 && v.e === alt.e)) G.m.set(k, { ...v, x, y, z });
     }
     const mittel = meshVoxels(G, G.m.values());
-    return { grob: grob.map((a, k) => vereine(a, mittel[k], 1)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava), natur: new Float32Array(natur) };
+    return { grob: grob.map((a, k) => vereine(a, mittel[k], 1)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava), natur: new Float32Array(natur), boden };
   }
   const feinM = meshVoxels(F, F.m.values());
-  return { grob: grob.map((a, k) => vereine(a, feinM[k], 0.5)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava), natur: new Float32Array(natur) };
+  return { grob: grob.map((a, k) => vereine(a, feinM[k], 0.5)), fein: [], wasser: new Float32Array(wasser), lava: new Float32Array(lava), natur: new Float32Array(natur), boden };
 }
 
 /** zwei Netze zu einem; das zweite wird dabei um sb verkleinert (halbe Voxel) */
@@ -94,20 +100,20 @@ export function vereine(a: MeshDaten | null, b: MeshDaten | null, sb: number): M
   return { p, n, c, i };
 }
 
-export interface UebersichtDaten { p: Float32Array; n: Int8Array; c: Float32Array; i: Uint32Array; hoch: Float32Array; boden: Float32Array; farbe: Uint8Array; N: number;
+export interface UebersichtDaten { p: Float32Array; n: Float32Array; c: Float32Array; i: Uint32Array; hoch: Float32Array; boden: Float32Array; farbe: Uint8Array; N: number;
   /** grobe Bäume und Felsen der ganzen Welt: je 4 Werte x, Bodenhöhe, z, Art (0 laub, 1 tanne, 2 herbst, 3 leucht, 4 busch, 5 tot, 9 fels) */
   dekoListe: Float32Array }
 
 /** Übersicht der ganzen Welt in Zellen zu 4 × 4 Blöcken (weite Sicht und Übersichtskarte) */
 export function uebersicht(): UebersichtDaten {
   const Z = 4, N = (2 * WR) / Z;
-  const hoch = new Float32Array(N * N).fill(-999), boden = new Float32Array(N * N).fill(-999), farbe = new Uint8Array(N * N * 3);
+  const art = new Uint8Array(N * N), hoch = new Float32Array(N * N).fill(-999), boden = new Float32Array(N * N).fill(-999), farbe = new Uint8Array(N * N * 3);
   const L = orte();
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
     const x = -WR + i * Z + 2, z = -WR + j * Z + 2, s = spalte(x, z); if (!s) continue;
     let top = s.h + 1, col = s.col;
-    if (s.a === 'w') { top = s.h + 1.72; col = '#3f7fa0'; }
-    if (s.a === 'l') { top = s.h + 1.62; col = '#c8501a'; }
+    if (s.a === 'w') { top = s.h + 1.72; col = '#3f7fa0'; art[j * N + i] = 1; }
+    if (s.a === 'l') { top = s.h + 1.62; col = '#c8501a'; art[j * N + i] = 2; }
     boden[i * N + j] = top;
     for (const o of L) if (o.typ === 'kristall' && Math.abs(x - o.x) < 4 && Math.abs(z - o.z) < 4) { col = '#7fe9ff'; top += 2; }
     hoch[i * N + j] = top;
@@ -120,25 +126,8 @@ export function uebersicht(): UebersichtDaten {
     if (h3(x, 9, z) > 0.07 && h3(x, 11, z) > 0.05) continue; // schneller Vorfilter (siehe deko)
     const s = spalte(x, z); if (!s) continue;
     const d = deko(x, z, s); if (!d || d.art === 'gras') continue;
-    dl.push(x, s.h + 1, z, d.art === 'fels' ? 9 : ART[d.typ]);
+    dl.push(x, GLATT.an ? bodenHoehe(x + 0.5, z + 0.5) : s.h + 1, z, d.art === 'fels' ? 9 : ART[d.typ]);
   }
-  const p: number[] = [], n: number[] = [], c: number[] = [], idx: number[] = [];
-  const quad = (a: number[], b: number[], cc: number[], d: number[], nx: number, ny: number, nz: number, rgb: number[], k: number) => {
-    const base = p.length / 3; p.push(...a, ...b, ...cc, ...d);
-    for (let q = 0; q < 4; q++) { n.push(nx, ny, nz); c.push(rgb[0] * k, rgb[1] * k, rgb[2] * k); }
-    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
-  };
-  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
-    const h = hoch[i * N + j]; if (h < -900) continue;
-    const x0 = -WR + i * Z, z0 = -WR + j * Z, x1 = x0 + Z, z1 = z0 + Z;
-    const o = (j * N + i) * 3, rgb = [srgbLin(farbe[o] / 255), srgbLin(farbe[o + 1] / 255), srgbLin(farbe[o + 2] / 255)];
-    quad([x0, h, z0], [x0, h, z1], [x1, h, z1], [x1, h, z0], 0, 1, 0, rgb, 1);
-    const nb = (a: number, b: number) => (a < 0 || b < 0 || a >= N || b >= N ? -999 : hoch[a * N + b]);
-    const unten = (v: number) => (v < -900 ? h - 24 : v);
-    let v = unten(nb(i + 1, j)); if (v < h) quad([x1, h, z0], [x1, h, z1], [x1, v, z1], [x1, v, z0], 1, 0, 0, rgb, 0.78);
-    v = unten(nb(i - 1, j)); if (v < h) quad([x0, h, z1], [x0, h, z0], [x0, v, z0], [x0, v, z1], -1, 0, 0, rgb, 0.7);
-    v = unten(nb(i, j + 1)); if (v < h) quad([x1, h, z1], [x0, h, z1], [x0, v, z1], [x1, v, z1], 0, 0, 1, rgb, 0.85);
-    v = unten(nb(i, j - 1)); if (v < h) quad([x0, h, z0], [x1, h, z0], [x1, v, z0], [x0, v, z0], 0, 0, -1, rgb, 0.65);
-  }
-  return { p: new Float32Array(p), n: new Int8Array(n), c: new Float32Array(c), i: new Uint32Array(idx), hoch, boden, farbe, N, dekoListe: new Float32Array(dl) };
+  const netz = uebersichtNetz(N, Z, farbe, hoch, art);
+  return { p: netz.p, n: netz.n, c: netz.c, i: netz.i, hoch, boden, farbe, N, dekoListe: new Float32Array(dl) };
 }

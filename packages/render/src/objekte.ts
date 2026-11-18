@@ -1,6 +1,6 @@
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as THREE from 'three';
-import { GEBAEUDE, trockenerWeg, trocken, spalte, deko, Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, hoehe } from '@runeboom/core';
+import { GEBAEUDE, trockenerWeg, trocken, spalte, deko, Spiel, type Geb, type GebTyp, type GegTyp, type Ereignis, type Res, bodenHoehe as hoehe } from '@runeboom/core';
 import { Grid, meshVoxels } from './voxel.ts';
 import { geometrie, gridZuGruppe, SOLID, GLOW, LAMP, weg, ZEIT, FABRIK } from './grafik.ts';
 import {
