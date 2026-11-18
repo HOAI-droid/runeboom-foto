@@ -1,4 +1,4 @@
-import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, bodenHoehe, type Spalte } from '@runeboom/core';
+import { CH, WR, PAL, spalte, deko, orte, rng, h3, seed, bodenHoehe, fbm, frei, type Spalte } from '@runeboom/core';
 import { Grid, meshVoxels, srgbLin, type MeshDaten, type Voxel } from './voxel.ts';
 import { baum, fels, kristalle, riss, stumpf, setzling } from './modelle.ts';
 import { GLATT } from './schalter.ts';
@@ -50,7 +50,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
       const lx = x - ox + 0.2 + r() * 0.6, lz = z - oz + 0.2 + r() * 0.6, ly = bodenHoehe(x + (lx - (x - ox)), z + (lz - (z - oz))), dreh = r() * 6.283, v = Math.floor(r() * 3), asche = s.a === 'asche' ? 1 : 0;
       const hoeheAn = (qx: number, qz: number) => bodenHoehe(ox + qx, oz + qz);
       if (dk.art === 'baum') natur.push(NAT_ART[dk.typ] ?? 0, lx, ly - 0.1, lz, dreh, 0.85 + r() * 0.4, v, 0);
-      else if (dk.art === 'fels') natur.push(6, lx, ly, lz, dreh, 0.8 + r() * 0.8, v, asche);
+      else if (dk.art === 'fels') { natur.push(6, lx, ly, lz, dreh, 0.8 + r() * 0.8, v, asche); for (let q = 0; q < 3; q++) { const fx = lx + (r() - 0.5) * 2.6, fz = lz + (r() - 0.5) * 2.6; natur.push(9, fx, hoeheAn(fx, fz) - 0.05, fz, r() * 6.283, 0.8 + r() * 0.6, q, 0); } }
       else if (r() < 0.75) { natur.push(7, lx - 0.25, hoeheAn(lx - 0.25, lz - 0.2), lz - 0.2, dreh, 0.8 + r() * 0.6, v, 0); if (r() > 0.4) natur.push(7, lx + 0.3, hoeheAn(lx + 0.3, lz + 0.25), lz + 0.25, dreh + 2, 0.7 + r() * 0.5, v + 1, 0); }
       else natur.push(8, lx, ly, lz, dreh, 0.9 + r() * 0.3, v, 0);
       continue;
@@ -63,6 +63,14 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
       if (r() < 0.75) { if (stufe >= 3) F.set(fx, Y, fz, '#7fb04e'); if (r() > 0.5 && stufe >= 3) F.set(fx, Y + 1, fz, '#8fbd58'); }
       else { const farbe = ['#e8d06a', '#d86aa8', '#8fd0ff', '#f2f0ea'][Math.floor(r() * 4)]; if (stufe >= 3) F.set(fx, Y, fz, farbe); }
     }
+  }
+  if (GLATT.an && stufe >= 3) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) { // reiner Unterwuchs: Farne, Blütenbüsche, dichteres Gras (nur Darstellung, ohne Einfluss auf die Rechnung)
+    const s = S(x, z); if (!s || s.a !== 'gras' || !frei(x, z, s)) continue;
+    const dk = deko(x, z, s); if (dk && dk.art !== 'gras') continue;
+    const wald = fbm(x, z, 0.045, seed() + 20), jx = h3(x, 34, z), jz = h3(x, 35, z), lx = x - ox + 0.15 + jx * 0.7, lz = z - oz + 0.15 + jz * 0.7, y = bodenHoehe(x + 0.15 + jx * 0.7, z + 0.15 + jz * 0.7), h = h3(x, 31, z);
+    if (h < (wald > 0.52 ? 0.14 : 0.03)) natur.push(9, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 2), 0);
+    else if (h3(x, 32, z) < 0.012) natur.push(10, lx, y - 0.05, lz, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.5, Math.floor(h3(x, 38, z) * 4), 0);
+    else if (h3(x, 33, z) < 0.3) natur.push(7, lx, y, lz, h3(x, 36, z) * 6.283, 0.9 + h3(x, 37, z) * 0.7, Math.floor(h3(x, 38, z) * 3), 0);
   }
   for (const o of orte()) {
     if (Math.floor(o.x / CH) !== cx || Math.floor(o.z / CH) !== cz) continue;

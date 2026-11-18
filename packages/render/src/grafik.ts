@@ -209,8 +209,8 @@ export function becken(zellen: Float32Array, mat: THREE.Material): THREE.Mesh {
 
 // ================= Tag und Nacht =================
 export interface Stimmung { top: string; bot: string; fog: string; sun: string; sunI: number; sunP: [number, number, number]; hemiS: string; hemiG: string; hemiI: number; exp: number; glow: number; lamp: number; tint: string; bloom: number; wasser: [string, string, string]; nebel: string; dunst: number }
-export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffc27a', sunI: 3.4, sunP: [-50, 42, 34], hemiS: '#a9c4ff', hemiG: '#6b4a2f', hemiI: 1.15, exp: 1.0, glow: 0.62, lamp: 0.3, tint: '#ffd9a8', bloom: 0.32, wasser: ['#1f5a6e', '#4fa3b3', '#ffe2b0'], nebel: '#f6e4c4', dunst: 0.34 };
-export const NACHT: Stimmung = { top: '#060b1e', bot: '#24386a', fog: '#1b2a52', sun: '#9db4ff', sunI: 1.2, sunP: [44, 58, -24], hemiS: '#4a63a8', hemiG: '#16122a', hemiI: 0.5, exp: 1.1, glow: 0.7, lamp: 0.8, tint: '#c8d6ff', bloom: 0.28, wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#55607e', dunst: 0.16 };
+export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffbe6e', sunI: 4.2, sunP: [-50, 38, 34], hemiS: '#b4c8f0', hemiG: '#7a5530', hemiI: 1.05, exp: 1.0, glow: 0.62, lamp: 0.3, tint: '#ffd9a8', bloom: 0.32, wasser: ['#1f5a6e', '#4fa3b3', '#ffe2b0'], nebel: '#f8e2bc', dunst: 0.5 };
+export const NACHT: Stimmung = { top: '#060b1e', bot: '#24386a', fog: '#1b2a52', sun: '#9db4ff', sunI: 1.7, sunP: [44, 58, -24], hemiS: '#5a73b8', hemiG: '#241c3c', hemiI: 0.85, exp: 1.25, glow: 0.7, lamp: 0.8, tint: '#c8d6ff', bloom: 0.28, wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#55607e', dunst: 0.16 };
 const c1 = new THREE.Color(), c2 = new THREE.Color();
 const mixC = (a: string, b: string, t: number, out: THREE.Color) => out.copy(c1.set(a)).lerp(c2.set(b), t);
 
@@ -253,7 +253,7 @@ export class Lichtstrahlen {
   }
   /** sonne: Einheitsvektor zur Sonne; nacht 0…1 */
   update(ziel: THREE.Vector3, sonne: THREE.Vector3, nacht: number, zeit: number): void {
-    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.26 + nacht * 0.04;
+    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.24 + nacht * 0.04;
     const x = new THREE.Vector3(-sonne.z, 0, sonne.x).normalize(), z = new THREE.Vector3().crossVectors(x, sonne), m = new THREE.Matrix4().makeBasis(x, sonne, z), q = new THREE.Quaternion().setFromRotationMatrix(m);
     const farbe = new THREE.Color().set('#ffe0aa').lerp(new THREE.Color('#9db4ff'), Math.min(1, nacht * 1.4));
     for (let a = -2; a < 2; a++) for (let b = -2; b < 2; b++) {

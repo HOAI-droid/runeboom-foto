@@ -9,7 +9,7 @@ import { FABRIK } from './grafik.ts';
  */
 
 /** Arten in der Instanzliste (Stufe je Instanz: 8 Werte) */
-export const NAT = { laub: 0, tanne: 1, herbst: 2, leucht: 3, busch: 4, tot: 5, fels: 6, gras: 7, blume: 8 } as const;
+export const NAT = { laub: 0, tanne: 1, herbst: 2, leucht: 3, busch: 4, tot: 5, fels: 6, gras: 7, blume: 8, farn: 9, bluete: 10 } as const;
 /** Listenaufbau je Instanz: Art, x, y, z (Kachel-Koordinaten), Drehung, Größe, Variante, Tönung (0 normal, 1 Asche) */
 export const NAT_SCHRITT = 8;
 
@@ -114,15 +114,15 @@ function karten(zentrum: [number, number, number], rx: number, ry: number, anzah
 }
 
 /** Laubbaum: Stamm mit Wurzelanläufen und Ästen, dunkler Kern, Krone aus vielen Laubkarten (fein) bzw. weniger (mittlere Entfernung) */
-function laubbaum(v: number, farben: [string, string, string], beeren = false, fein = true): THREE.BufferGeometry {
-  const s = v * 7.3 + 1, [d, m, h] = farben, t: THREE.BufferGeometry[] = [];
+function laubbaum(v: number, farben: [string, string, string], beeren = false, fein = true, birke = false): THREE.BufferGeometry {
+  const s = v * 7.3 + 1, [d, m, h] = farben, t: THREE.BufferGeometry[] = [], RI = birke ? ['#4a443a', '#f1ecde'] : ['#3a2a1d', '#6a5038'];
   const th = 3.9 + 0.7 * v, rx = 3.4 + 0.4 * v, ry = 2.8 + 0.3 * v, cy = th + ry * 0.85, farbe = kronenFarbe(cy, ry, rx, s, d, m, h);
-  t.push(ast(0, -0.3, 0, 0.1, th + 0.3, 0, 0.62, 0.26, ['#3a2a1d', '#6a5038'], fein ? 10 : 6));
+  t.push(ast(0, -0.3, 0, 0.1, th + 0.3, 0, birke ? 0.45 : 0.62, 0.2, RI, fein ? 10 : 6));
   const kern = new THREE.Color(m).multiplyScalar(0.55), kf: Farbe = (_x, py) => kern.clone().multiplyScalar(0.6 + 0.5 * Math.min(1, Math.max(0, (py - cy + ry) / (2 * ry))));
   const innen: [number, number, number][] = [];
   for (let k = 0; k < (fein ? 7 : 4); k++) { const a = k * 2.4 + v, r = k === 0 ? 0 : 1.0 + 0.4 * rz(k, 1, v, 7), y = cy + (k === 0 ? -0.2 : (rz(k, 2, v, 7) - 0.5) * ry * 0.8), sr = k === 0 ? 1.55 : 1.0 + 0.3 * rz(k, 3, v, 7); t.push(buschel(sr, sr * 0.8, sr, Math.cos(a) * r, y, Math.sin(a) * r, s + k, kf, 1, 0.3)); if (k > 0) innen.push([Math.cos(a) * r, y, Math.sin(a) * r]); }
-  t.push(karten([0, cy, 0], rx, ry, fein ? 170 : 44, fein ? 2.2 : 3.3, s, farbe, [0.62, 1.05]));
-  for (const [x, y, z] of innen.slice(0, fein ? 5 : 2)) t.push(ast(0.05, th - 0.9, 0, x * 0.8, y * 0.85, z * 0.8, 0.2, 0.06, ['#3a2a1d', '#6a5038'], 6));
+  t.push(karten([0, cy, 0], rx, ry, fein ? 210 : 52, fein ? 2.5 : 3.5, s, farbe, [0.62, 1.05]));
+  for (const [x, y, z] of innen.slice(0, fein ? 5 : 2)) t.push(ast(0.05, th - 0.9, 0, x * 0.8, y * 0.85, z * 0.8, 0.2, 0.06, RI, 6));
   if (fein) for (const [dx, dz] of [[0.6, 0.1], [-0.45, 0.45], [0.05, -0.6], [-0.3, -0.5]]) t.push(ast(dx * 0.5, 0.15, dz * 0.5, dx * 1.7, -0.3, dz * 1.7, 0.24, 0.08, ['#3a2a1d', '#6a5038'], 5)); // Wurzelanläufe
   if (beeren) for (let i = 0; i < 9; i++) { const a = rz(i, 1, v, 5) * 6.28, y = cy - 1 + rz(i, 2, v, 5) * 3.4, r = rx * 0.78 + rz(i, 3, v, 5) * 0.7; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(Math.cos(a) * r, y, Math.sin(a) * r), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
   return vereint(t, true);
@@ -149,6 +149,31 @@ function nadelTex(): THREE.CanvasTexture {
   c.fillStyle = '#ffffff'; c.fillRect(n - 16, 0, 16, n);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; NADELTEX = t; return t;
 }
+/** Farn: Wedel als gebogene Streifen mit Nadeltextur (Fächer), flach ausladend */
+function farn(v: number, fein = true): THREE.BufferGeometry {
+  const pos: number[] = [], nor: number[] = [], col: number[] = [], uv: number[] = [], idx: number[] = [], c = new THREE.Color();
+  const n = fein ? 9 : 5;
+  for (let k = 0; k < n; k++) {
+    const a = k * 2.399963 + v, len = 1.1 + 0.7 * rz(k, 1, v, 61), wd = 0.55 + 0.3 * rz(k, 2, v, 61), rise = 0.55 + 0.35 * rz(k, 3, v, 61), dx = Math.cos(a), dz = Math.sin(a), b0 = pos.length / 3;
+    for (let r = 0; r < 4; r++) {
+      const t = r / 3, px = dx * len * t, pz = dz * len * t, py = 0.12 + Math.sin(rise) * len * t * 1.1 - 0.9 * t * t * len * 0.5, w = wd * (0.35 + 0.65 * Math.sin(Math.PI * (0.15 + 0.7 * t)));
+      for (const side of [-1, 1]) {
+        c.set('#2c5a22').lerp(new THREE.Color('#8cc050'), 0.25 + 0.6 * t + 0.15 * rz(k, 4, v, 61)).multiplyScalar(1.25);
+        pos.push(px - dz * side * w * 0.5, py, pz + dx * side * w * 0.5); nor.push(0, 1, 0); col.push(c.r, c.g, c.b); uv.push(side < 0 ? 0 : 0.93, t);
+      }
+    }
+    for (let r = 0; r < 3; r++) { const i = b0 + r * 2; idx.push(i, i + 1, i + 3, i, i + 3, i + 2, i, i + 3, i + 1, i, i + 2, i + 3); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); return g;
+}
+const BLUETEN = ['#9a64d8', '#e070b0', '#efeae0', '#f0c040'];
+/** Blühender Busch: grüner Busch mit vielen kleinen Blüten oben */
+function bluetenbusch(v: number, fein = true): THREE.BufferGeometry {
+  const t: THREE.BufferGeometry[] = [busch(v, fein)], f = new THREE.Color(BLUETEN[v % BLUETEN.length]);
+  const n = fein ? 34 : 12; for (let k = 0; k < n; k++) { const a = k * 2.399963, yy = 0.15 + 0.8 * rz(k, 1, v, 62), r = Math.sqrt(1 - yy * yy) * (1.25 + 0.2 * rz(k, 2, v, 62)), sz = 0.14 + 0.1 * rz(k, 3, v, 62);
+    t.push(fertig(new THREE.IcosahedronGeometry(sz, 0).translate(Math.cos(a) * r, 0.7 + yy * 0.95, Math.sin(a) * r), () => f.clone().multiplyScalar(0.85 + 0.5 * rz(k, 4, v, 62)))); }
+  return vereint(t, true);
+}
 /** Tanne: Stamm, dunkler Kegelkern und viele hängende Zweigfächer in Stockwerken (Karten mit Nadeltextur) */
 function tanne(v: number, fein = true): THREE.BufferGeometry {
   const s = v * 5.1 + 2, stufen = fein ? 9 : 5, t: THREE.BufferGeometry[] = [ast(0, -0.3, 0, 0, 2.8, 0, 0.5, 0.26, ['#3a2a1d', '#5e4630'], fein ? 8 : 5)];
@@ -159,7 +184,7 @@ function tanne(v: number, fein = true): THREE.BufferGeometry {
   for (let i = 0; i < stufen; i++) {
     const f = i / (stufen - 1), r = 3.4 - 2.7 * f + 0.15 * v, y = 1.4 + i * (fein ? 1.15 : 1.75) + 0.5, zahl = Math.round((fein ? 11 : 7) - 5 * f);
     for (let k = 0; k < zahl * (fein ? 2 : 1); k++) {
-      const a = (k + (i % 2) * 0.5) * (6.2832 / zahl) + rz(k, i, s, 51) * 0.5, drop = 0.28 + 0.3 * rz(k, i, s, 52) + (fein && k >= zahl ? 0.25 : 0), len = r * (fein && k >= zahl ? 0.72 : 1) * (0.9 + 0.2 * rz(k, i, s, 53)), wd = (1.5 + 1.4 * (1 - f)) * (0.9 + 0.2 * rz(k, i, s, 54));
+      const a = (k + (i % 2) * 0.5) * (6.2832 / zahl) + rz(k, i, s, 51) * 0.5, drop = 0.28 + 0.3 * rz(k, i, s, 52) + (fein && k >= zahl ? 0.25 : 0), len = r * 1.3 * (fein && k >= zahl ? 0.72 : 1) * (0.9 + 0.2 * rz(k, i, s, 53)), wd = (2.0 + 1.6 * (1 - f)) * (0.9 + 0.2 * rz(k, i, s, 54));
       const dx = Math.cos(a) * Math.cos(drop), dy = -Math.sin(drop), dz = Math.sin(a) * Math.cos(drop), wx = -Math.sin(a), wz = Math.cos(a), yy = y + (fein && k >= zahl ? -0.35 : 0);
       const b0 = pos.length / 3;
       for (const [along, side, tu, tv] of [[0.2, -1, 0, 0], [0.2, 1, 0.93, 0], [1, 1, 0.93, 1], [1, -1, 0, 1]]) {
@@ -234,10 +259,12 @@ let MAT: { fest: THREE.Material; gras: THREE.Material; laub: THREE.Material; nad
 function netze(fein: boolean): Map<string, THREE.BufferGeometry> {
   const L = fein ? 1 : 0; if (NETZE[L]) return NETZE[L]!; const m = new Map<string, THREE.BufferGeometry>();
   for (let v = 0; v < 2; v++) {
-    m.set(`${NAT.laub}/${v}`, laubbaum(v, ['#1c3b1c', '#3f6c2e', '#86ab50'], false, fein)); m.set(`${NAT.herbst}/${v}`, laubbaum(v, ['#5e2612', '#b85d22', '#efb04a'], false, fein));
+    m.set(`${NAT.laub}/${v}`, laubbaum(v, ['#1c3b1c', '#3f6c2e', '#86ab50'], false, fein)); m.set(`${NAT.herbst}/${v}`, laubbaum(v, ['#6a3012', '#d07a26', '#ffcf5a'], false, fein, v === 0));
     m.set(`${NAT.leucht}/${v}`, laubbaum(v, ['#262048', '#4f4580', '#9a8fd2'], true, fein));
     m.set(`${NAT.tanne}/${v}`, tanne(v, fein)); m.set(`${NAT.busch}/${v}`, busch(v, fein)); m.set(`${NAT.tot}/${v}`, toterBaum(v)); m.set(`${NAT.fels}/${v}`, fels(v, fein));
   }
+  for (let v = 0; v < 2; v++) m.set(`${NAT.farn}/${v}`, farn(v, fein));
+  for (let v = 0; v < BLUETEN.length; v++) m.set(`${NAT.bluete}/${v}`, bluetenbusch(v, fein));
   for (let v = 0; v < 3; v++) m.set(`${NAT.gras}/${v}`, gras(v));
   for (let v = 0; v < BLUMEN.length; v++) m.set(`${NAT.blume}/${v}`, gras(v + 5, BLUMEN[v]));
   return (NETZE[L] = m);
@@ -254,12 +281,12 @@ function material(): { fest: THREE.Material; gras: THREE.Material; laub: THREE.M
 export function baueNatur(liste: Float32Array, schatten: boolean): THREE.Object3D[] {
   const N = netze(schatten), M = material(), gruppen = new Map<string, number[]>();
   for (let i = 0; i < liste.length; i += NAT_SCHRITT) {
-    const art = liste[i], v = liste[i + 6], key = `${art}/${art === NAT.gras ? v % 3 : art === NAT.blume ? v % BLUMEN.length : v % 2}`; (gruppen.get(key) ?? gruppen.set(key, []).get(key)!).push(i);
+    const art = liste[i], v = liste[i + 6], key = `${art}/${art === NAT.gras ? v % 3 : art === NAT.blume ? v % BLUMEN.length : art === NAT.bluete ? v % BLUETEN.length : v % 2}`; (gruppen.get(key) ?? gruppen.set(key, []).get(key)!).push(i);
   }
   const aus: THREE.Object3D[] = [], mat4 = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), sk = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), farbe = new THREE.Color();
   for (const [key, idx] of gruppen) {
-    const geo = N.get(key); if (!geo) continue; const art = +key.split('/')[0], klein = art === NAT.gras || art === NAT.blume;
-    const mesh = new THREE.InstancedMesh(geo, klein ? M.gras : art === NAT.fels ? M.fest : art === NAT.tanne ? M.nadel : M.laub, idx.length);
+    const geo = N.get(key); if (!geo) continue; const art = +key.split('/')[0], klein = art === NAT.gras || art === NAT.blume || art === NAT.farn;
+    const mesh = new THREE.InstancedMesh(geo, art === NAT.farn ? M.nadel : klein ? M.gras : art === NAT.fels ? M.fest : art === NAT.tanne ? M.nadel : M.laub, idx.length);
     idx.forEach((i, k) => {
       pos.set(liste[i + 1], liste[i + 2], liste[i + 3]); q.setFromAxisAngle(up, liste[i + 4]); const g = liste[i + 5]; sk.set(g, g, g); mat4.compose(pos, q, sk); mesh.setMatrixAt(k, mat4);
       const hell = 0.86 + 0.28 * rz(liste[i + 1], liste[i + 3], 0, 3); farbe.setRGB(hell, hell, hell); if (liste[i + 7] === 1) farbe.multiplyScalar(0.55); mesh.setColorAt(k, farbe);
