@@ -55,15 +55,19 @@ function ast(x0: number, y0: number, z0: number, x1: number, y1: number, z1: num
   const g = new THREE.CylinderGeometry(r1, r0, len, seg, Math.max(2, Math.round(len * 1.2))); g.deleteAttribute('uv');
   { const p = g.getAttribute('position'); for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), w = 1 + 0.12 * wr(x * 7, y * 1.6, z * 7, 6); p.setXYZ(i, x * w, y, z * w); } } // knorrige Rinde
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), v.clone().normalize())); g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-  return fertig(g, (px, py, pz) => lin(rinde[0], rinde[1], 0.4 + 0.6 * wr(px * 11, py * 2.2, pz * 11, 4) * 0.9));
+  const geo = fertig(g, (px, py, pz) => lin(rinde[0], rinde[1], 0.4 + 0.6 * wr(px * 11, py * 2.2, pz * 11, 4) * 0.9));
+  const Pp = geo.getAttribute('position'), uv = new Float32Array(Pp.count * 2); // Rindenstreifen im Laub-Atlas: Umfang → u, Länge → v
+  for (let i = 0; i < Pp.count; i++) { uv[2 * i] = 0.885 + 0.08 * (Math.atan2(Pp.getZ(i) - (z0 + z1) / 2, Pp.getX(i) - (x0 + x1) / 2) / 6.2832 + 0.5); uv[2 * i + 1] = (Pp.getY(i) - Math.min(y0, y1)) * 0.12; }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return geo;
 }
 /** Teile zu einem Netz; mit uv = true bekommen Teile ohne UV einen vollständig deckenden Punkt der Laubtextur (nur Vertexfarbe zählt) */
 const vereint = (teile: THREE.BufferGeometry[], uv = false): THREE.BufferGeometry => {
-  if (uv) for (const t of teile) if (!t.getAttribute('uv')) { const n = t.getAttribute('position').count, a = new Float32Array(n * 2); for (let i = 0; i < n; i++) { a[2 * i] = 0.975; a[2 * i + 1] = 0.5; } t.setAttribute('uv', new THREE.BufferAttribute(a, 2)); }
+  if (uv) for (const t of teile) if (!t.getAttribute('uv')) { const n = t.getAttribute('position').count, a = new Float32Array(n * 2); for (let i = 0; i < n; i++) { a[2 * i] = 0.99; a[2 * i + 1] = 0.5; } t.setAttribute('uv', new THREE.BufferAttribute(a, 2)); }
   const g = mergeGeometries(teile, false)!; teile.forEach((t) => t.dispose()); return g;
 };
 
-// ---------- Laubtextur: ein Büschel aus vielen Blättern, Alpha-Schnitt, Grauwerte (die Farbe kommt aus den Vertexfarben) ----------
+// ---------- Laubtextur: Büschel aus sehr vielen feinen Blättern (Alpha-Schnitt, Grauwerte; die Farbe kommt aus den Vertexfarben).
+// Atlas 256²: links (x < 224) das Büschel, x 224…248 Rinde (senkrechte Furchen, waagrechte Narben), x ≥ 248 deckend weiß ----------
 let LAUBTEX: THREE.CanvasTexture | null = null;
 function laubTex(): THREE.CanvasTexture {
   if (LAUBTEX) return LAUBTEX;
@@ -71,21 +75,24 @@ function laubTex(): THREE.CanvasTexture {
   c.clearRect(0, 0, n, n);
   const blatt = (x: number, y: number, w: number, h: number, rot: number, v: number) => {
     c.save(); c.translate(x, y); c.rotate(rot);
-    const gr = c.createLinearGradient(0, h, 0, -h); gr.addColorStop(0, `rgb(${v * 0.5 | 0},${v * 0.52 | 0},${v * 0.46 | 0})`); gr.addColorStop(1, `rgb(${Math.min(255, v * 1.08) | 0},${v | 0},${v * 0.9 | 0})`);
-    c.fillStyle = gr; c.beginPath(); c.moveTo(0, h); c.quadraticCurveTo(w * 1.2, h * 0.1, 0, -h); c.quadraticCurveTo(-w * 1.2, h * 0.1, 0, h); c.fill();
-    c.strokeStyle = `rgba(0,0,0,0.22)`; c.lineWidth = 0.8; c.beginPath(); c.moveTo(0, h); c.lineTo(0, -h * 0.8); c.stroke(); c.restore();
+    const gr = c.createLinearGradient(0, h, 0, -h); gr.addColorStop(0, `rgb(${v * 0.45 | 0},${v * 0.5 | 0},${v * 0.42 | 0})`); gr.addColorStop(1, `rgb(${Math.min(255, v * 1.1) | 0},${v | 0},${v * 0.88 | 0})`);
+    c.fillStyle = gr; c.beginPath(); c.moveTo(0, h); c.quadraticCurveTo(w * 1.3, h * 0.1, 0, -h); c.quadraticCurveTo(-w * 1.3, h * 0.1, 0, h); c.fill(); c.restore();
   };
-  const R = 112, mx = 120, my = 128;
-  for (let pass = 0; pass < 2; pass++) {
-    const zahl = pass === 0 ? 240 : 560;
+  const R = 104, mx = 112, my = 128;
+  for (let pass = 0; pass < 3; pass++) {
+    const zahl = pass === 0 ? 420 : pass === 1 ? 700 : 520;
     for (let i = 0; i < zahl; i++) {
-      const a = rz(i, pass, 1, 31) * 6.2832, r = Math.sqrt(rz(i, pass, 2, 31)) * R * (pass === 0 ? 0.88 : 1) * (0.85 + 0.15 * Math.sin(a * 5 + 1.3)), x = mx + Math.cos(a) * r * 1.05, y = my + Math.sin(a) * r * 0.92 + (Math.sin(a) > 0.2 ? -4 : 0);
-      const v = pass === 0 ? 105 + 70 * rz(i, pass, 3, 31) : 150 + 105 * Math.pow(rz(i, pass, 3, 31), 0.7);
-      blatt(x, y, 3.2 + 3 * rz(i, pass, 4, 31), 8 + 8 * rz(i, pass, 5, 31), a + 1.57 + (rz(i, pass, 6, 31) - 0.5) * 1.6, v);
+      const a = rz(i, pass, 1, 31) * 6.2832, r = Math.sqrt(rz(i, pass, 2, 31)) * R * (pass === 0 ? 0.86 : 1) * (0.8 + 0.2 * Math.sin(a * 5 + 1.3) * Math.sin(a * 3 + 0.4)), x = mx + Math.cos(a) * r * 1.05, y = my + Math.sin(a) * r * 0.9;
+      const v = pass === 0 ? 70 + 60 * rz(i, pass, 3, 31) : pass === 1 ? 120 + 90 * rz(i, pass, 3, 31) : 190 + 65 * Math.pow(rz(i, pass, 3, 31), 0.6);
+      blatt(x, y, 2.0 + 2.2 * rz(i, pass, 4, 31), 5 + 6 * rz(i, pass, 5, 31), a + 1.57 + (rz(i, pass, 6, 31) - 0.5) * 2.0, v);
     }
   }
-  c.fillStyle = '#ffffff'; c.fillRect(n - 16, 0, 16, n); // deckender Streifen für Stämme, Kerne und Steine
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; LAUBTEX = t; return t;
+  // Rinde
+  c.fillStyle = '#9a9a96'; c.fillRect(224, 0, 24, n);
+  for (let i = 0; i < 90; i++) { const x = 224 + rz(i, 1, 0, 32) * 24, y = rz(i, 2, 0, 32) * n, l = 20 + rz(i, 3, 0, 32) * 90; c.fillStyle = `rgba(${rz(i, 4, 0, 32) > 0.4 ? '30,28,26' : '230,230,224'},${0.25 + rz(i, 5, 0, 32) * 0.4})`; c.fillRect(x, y, 1 + rz(i, 6, 0, 32) * 2.5, l); }
+  for (let i = 0; i < 40; i++) { const y = rz(i, 1, 1, 32) * n; c.fillStyle = `rgba(20,18,16,${0.2 + rz(i, 2, 1, 32) * 0.3})`; c.fillRect(224 + rz(i, 3, 1, 32) * 12, y, 6 + rz(i, 4, 1, 32) * 14, 1.5); }
+  c.fillStyle = '#ffffff'; c.fillRect(248, 0, 8, n); // deckender Streifen für Kerne, Steine, Blüten
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; LAUBTEX = t; return t;
 }
 /**
  * Laubkarten: viele kleine Quadrate mit Blattbüschel-Textur, nach außen geneigt und beidseitig gezeichnet; die Normalen zeigen von der Krone
@@ -102,12 +109,12 @@ function karten(zentrum: [number, number, number], rx: number, ry: number, anzah
     n.x += (rz(k, 3, s, 41) - 0.5) * 0.9; n.y += (rz(k, 4, s, 41) - 0.5) * 0.9 + 0.15; n.z += (rz(k, 5, s, 41) - 0.5) * 0.9; n.normalize();
     u.crossVectors(Math.abs(n.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : up, n).normalize(); w.crossVectors(n, u);
     const roll = rz(k, 6, s, 41) * 6.2832, cr = Math.cos(roll), sr = Math.sin(roll), a = groesse * (0.8 + 0.5 * rz(k, 7, s, 41)) * 0.5;
-    const ecken = [[-1, -1, 0, 0], [1, -1, 0.93, 0], [1, 1, 0.93, 1], [-1, 1, 0, 1]], b0 = pos.length / 3;
+    const ecken = [[-1, -1, 0, 0], [1, -1, 0.86, 0], [1, 1, 0.86, 1], [-1, 1, 0, 1]], b0 = pos.length / 3, tup = 0.55 + 0.9 * rz(k, 8, s, 41); // tup: Hell/Dunkel je Karte, damit Büschel als Gruppen erkennbar sind
     for (const [i, j, tu, tv] of ecken) {
       const ex = (i * cr - j * sr) * a, ey = (i * sr + j * cr) * a;
       q.set(cx + u.x * ex + w.x * ey, cy + u.y * ex + w.y * ey, cz + u.z * ex + w.z * ey);
       sph.set(q.x - zentrum[0], (q.y - zentrum[1]) * (rx / ry), q.z - zentrum[2]).normalize().multiplyScalar(0.85).addScaledVector(n, 0.3).normalize();
-      const c = farbe(q.x, q.y, q.z, sph.x, sph.y, sph.z); pos.push(q.x, q.y, q.z); nor.push(sph.x, sph.y, sph.z); col.push(c.r, c.g, c.b); uv.push(tu, tv);
+      const c = farbe(q.x, q.y, q.z, sph.x, sph.y, sph.z); pos.push(q.x, q.y, q.z); nor.push(sph.x, sph.y, sph.z); col.push(c.r * tup, c.g * tup, c.b * tup); uv.push(tu, tv);
     }
     idx.push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3, b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2);
   }
@@ -139,8 +146,8 @@ function laubbaum(v: number, farben: [string, string, string], beeren = false, f
   spitzen.push([neigung, th + 1.4 * hoehe, neigung * 0.4, 1.3]); // Wipfel
   const cy = th + 2.2, farbe = kronenFarbe(cy, 3.4 * hoehe, 3.6 * breite, s, d, m, h), kern = new THREE.Color(m).multiplyScalar(0.5);
   t.push(buschel(1.1 * breite, 0.9, 1.1 * breite, neigung, th + 1.5, neigung * 0.4, s, () => kern, 1, 0.3));
-  const pro = Math.round((fein ? 460 : 80) / spitzen.length);
-  spitzen.forEach(([x, y, z, g], i) => t.push(karten([x, y, z], 1.5 * g, 1.15 * g, Math.max(5, Math.round(pro * (0.7 + 0.5 * g))), (fein ? 1.05 : 2.0) * (0.85 + 0.3 * rz(i, v, 4, 91)), s + i * 1.7, farbe, [0.35, 1.0])));
+  const pro = Math.round((fein ? 720 : 90) / spitzen.length);
+  spitzen.forEach(([x, y, z, g], i) => t.push(karten([x, y, z], 1.5 * g, 1.15 * g, Math.max(5, Math.round(pro * (0.7 + 0.5 * g))), (fein ? 0.9 : 1.9) * (0.85 + 0.3 * rz(i, v, 4, 91)), s + i * 1.7, farbe, [0.35, 1.0])));
   if (beeren) for (let i = 0; i < 8; i++) { const [x, y, z] = spitzen[i % spitzen.length], aa = rz(i, 1, v, 5) * 6.28; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(x + Math.cos(aa) * 1.2, y + (rz(i, 2, v, 5) - 0.5) * 1.5, z + Math.sin(aa) * 1.2), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
   if (fein) for (let k = 0; k < 3 + Math.floor(R(10) * 3); k++) { const aa = k * 2.1 + R(11) * 6, dx = Math.cos(aa), dz = Math.sin(aa); t.push(ast(dx * 0.25, 0.15, dz * 0.25, dx * (1.3 + R(12) * 0.8), -0.3, dz * (1.3 + R(12) * 0.8), 0.24, 0.08, ['#3a2a1d', '#6a5038'], 5)); }
   return vereint(t, true);
@@ -316,9 +323,9 @@ function netze(fein: boolean): Map<string, THREE.BufferGeometry> {
 }
 function material(): { fest: THREE.Material; gras: THREE.Material; laub: THREE.Material; nadel: THREE.Material } {
   return MAT ??= {
-    fest: FABRIK.licht({ vertexColors: true, map: felsTex(), roughness: 0.9, metalness: 0 }, 1.2), gras: FABRIK.licht({ vertexColors: true, map: grasTex(), alphaTest: 0.4, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.7),
-    laub: FABRIK.licht({ vertexColors: true, map: laubTex(), alphaTest: 0.5, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 1.1),
-    nadel: FABRIK.licht({ vertexColors: true, map: nadelTex(), alphaTest: 0.45, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.8)
+    fest: FABRIK.licht({ vertexColors: true, map: felsTex(), roughness: 0.9, metalness: 0 }, 1.2), gras: FABRIK.licht({ vertexColors: true, map: grasTex(), alphaTest: 0.4, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.7),
+    laub: FABRIK.licht({ vertexColors: true, map: laubTex(), alphaTest: 0.5, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 1.1),
+    nadel: FABRIK.licht({ vertexColors: true, map: nadelTex(), alphaTest: 0.45, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.8)
   };
 }
 

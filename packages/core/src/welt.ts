@@ -138,12 +138,23 @@ function oben(x: number, z: number): number {
   return (ov !== undefined ? ov : r.h) + 1;
 }
 const GW = [0.1, 0.4, 0.4, 0.1];
+/** zusätzliches Geländerelief (nur Darstellung): weit auslaufend an Feste, Pfad und Rissen, damit Bauplätze und Wege eben bleiben */
+function relief(x: number, z: number): number {
+  const db = mhypot(x - B.x, z - B.z); if (db < 34) return 0;
+  let m = clamp01((db - 34) / 40);
+  if (amPfad(x, z, 12)) m *= clamp01((Math.abs(x - pfadX(z)) - 5) / 7);
+  for (const q of RISSE) { const d = mhypot(x - q.x, z - q.z); if (d < 36) m *= clamp01((d - 14) / 22); }
+  if (m <= 0) return 0;
+  const gross = (fbm(x, z, 0.028, SEED + 90) - 0.5) * 2, mittel = (fbm(x, z, 0.09, SEED + 91) - 0.5) * 2, ruecken = 1 - Math.abs(fbm(x, z, 0.045, SEED + 92) - 0.5) * 4;
+  return m * (1.9 * gross + 0.6 * mittel + 0.9 * Math.max(0, ruecken - 0.35));
+}
 /** Höhe der Ecke (i, j) zwischen den vier Spalten i−1…i × j−1…j: gewichteter Mittelwert über 4 × 4 Spalten (Stufen werden zu Hängen) */
 export function eckeHoehe(i: number, j: number): number {
   const k = hk(i, j), c = eckenCache.get(k); if (c !== undefined) return c;
-  let s = 0, w = 0;
-  for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) { const t = oben(i - 2 + a, j - 2 + b); if (t < -900) continue; const g = GW[a] * GW[b]; s += t * g; w += g; }
-  const v = w > 0 ? s / w : 6;
+  let s = 0, w = 0, frei = true;
+  for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) { const t = oben(i - 2 + a, j - 2 + b); if (t < -900) continue; const g = GW[a] * GW[b]; s += t * g; w += g; if (a > 0 && a < 3 && b > 0 && b < 3) { const r = roh(i - 2 + a, j - 2 + b); if (r && (r.a === 'w' || r.a === 'l' || (HOEHEN.size && HOEHEN.has(hk(i - 2 + a, j - 2 + b))))) frei = false; } }
+  let v = w > 0 ? s / w : 6;
+  if (frei) v += relief(i, j); // sanfte Hügel und Rücken nur in der Darstellung, nicht an Becken, Pfad, Feste und geebneten Stellen
   if (eckenCache.size > 250000) eckenCache.clear();
   eckenCache.set(k, v); return v;
 }

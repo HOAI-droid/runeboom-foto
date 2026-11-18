@@ -77,7 +77,7 @@ export function bodenNetz(cx: number, cz: number, fein: boolean, S: (x: number, 
     // eingebrannte Verdunkelung: unter Kronen und Felsen, in Mulden (Krümmung der Höhe)
     let occ = 0; for (let q = 0; q < quellen.length; q += 4) { const d = Math.hypot(wx - quellen[q], wz - quellen[q + 1]), r = quellen[q + 2]; if (d < r) { const t = 1 - d / r; occ += quellen[q + 3] * t * t; } }
     const mulde = Math.max(0, (bodenHoehe(wx - 1, wz) + bodenHoehe(wx + 1, wz) + bodenHoehe(wx, wz - 1) + bodenHoehe(wx, wz + 1)) / 4 - bodenHoehe(wx, wz));
-    const schatten = (1 - Math.min(0.62, occ)) * (1 - Math.min(0.3, mulde * 0.9)), col = farbeAn(wx, wz, h, nm[1], S, sd).map((q, k) => q * 1.7 * schatten * (k === 2 ? 1.0 + (1 - schatten) * 0.25 : k === 0 ? 1 - (1 - schatten) * 0.1 : 1));
+    const streu = Math.min(0.7, occ * 1.1), schatten = (1 - Math.min(0.62, occ)) * (1 - Math.min(0.3, mulde * 0.9)), col = farbeAn(wx, wz, h, nm[1], S, sd).map((q, k) => (q + ([0.2, 0.12, 0.055][k] - q) * streu * 0.55) * 1.7 * schatten * (k === 2 ? 1.0 + (1 - schatten) * 0.25 : k === 0 ? 1 - (1 - schatten) * 0.1 : 1));
     uvk[(a * V + b) * 2] = wx / 6; uvk[(a * V + b) * 2 + 1] = wz / 6; p[o] = lx; p[o + 1] = h; p[o + 2] = lz; nn[o] = nm[0]; nn[o + 1] = nm[1]; nn[o + 2] = nm[2]; c[o] = col[0]; c[o + 1] = col[1]; c[o + 2] = col[2];
   }
   const idx: number[] = [], skp: number[] = [], skn: number[] = [], skc: number[] = [], ski: number[] = [];

@@ -49,7 +49,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
       // Stelle in der Kachel mit leichtem Versatz (nicht auf dem Blockraster), Höhe aus dem glatten Boden
       const lx = x - ox + 0.2 + r() * 0.6, lz = z - oz + 0.2 + r() * 0.6, ly = bodenHoehe(x + (lx - (x - ox)), z + (lz - (z - oz))), dreh = r() * 6.283, v = Math.floor(r() * 6), asche = s.a === 'asche' ? 1 : 0;
       const hoeheAn = (qx: number, qz: number) => bodenHoehe(ox + qx, oz + qz);
-      if (dk.art === 'baum') natur.push(NAT_ART[dk.typ] ?? 0, lx, ly - 0.1, lz, dreh, 0.85 + r() * 0.4, v, 0);
+      if (dk.art === 'baum') natur.push(NAT_ART[dk.typ] ?? 0, lx, ly - 0.1, lz, dreh, 0.7 + r() * 0.85, v, 0);
       else if (dk.art === 'fels') { natur.push(6, lx, ly, lz, dreh, 0.8 + r() * 0.8, v, asche); for (let q = 0; q < 3; q++) { const fx = lx + (r() - 0.5) * 2.6, fz = lz + (r() - 0.5) * 2.6; natur.push(9, fx, hoeheAn(fx, fz) - 0.05, fz, r() * 6.283, 0.8 + r() * 0.6, q, 0); } }
       else if (r() < 0.75) { natur.push(7, lx - 0.25, hoeheAn(lx - 0.25, lz - 0.2), lz - 0.2, dreh, 0.8 + r() * 0.6, v, 0); if (r() > 0.4) natur.push(7, lx + 0.3, hoeheAn(lx + 0.3, lz + 0.25), lz + 0.25, dreh + 2, 0.7 + r() * 0.5, v + 1, 0); }
       else natur.push(8, lx, ly, lz, dreh, 0.9 + r() * 0.3, v, 0);

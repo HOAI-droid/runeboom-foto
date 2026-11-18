@@ -157,7 +157,7 @@ class NachbearbeitungGPU implements Post {
   private uStaerke = uniform(0.5); private uTint = uniform(new THREE.Color('#ffd9a8'));
   constructor(private renderer: THREE.WebGPURenderer, scene: THREE.Scene, camera: THREE.Camera, private tiltWert: number) {
     this.uStaerke.value = tiltWert;
-    const szene = pass(scene, camera), farbe = szene.getTextureNode('output');
+    const szene = pass(scene, camera, { samples: 4 } as never), farbe = szene.getTextureNode('output');
     this.bl = bloom(farbe, 0.3, 0.75, 0.85);
     const st = this.uStaerke;
     const tiltR = (q: N) => smoothstep(0.22, 1, abs(q.y.sub(0.5)).mul(2)).mul(st).mul(screenSize.y).div(200);

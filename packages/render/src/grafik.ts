@@ -349,7 +349,8 @@ export class Nachbearbeitung implements Post {
   comp: EffectComposer; private bloom: UnrealBloomPass; private tiltH: ShaderPass; private ende: ShaderPass; private tiltStaerke: number;
   constructor(private renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, tilt = 0.5) {
     this.tiltStaerke = tilt;
-    this.comp = new EffectComposer(renderer);
+    // Mehrfachabtastung (MSAA) auch im Nachbearbeitungsziel, sonst gibt es keine Kantenglättung (Blattränder, Halme, Zäune)
+    this.comp = new EffectComposer(renderer, new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: 4 }));
     this.comp.addPass(new RenderPass(scene, camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(16, 16), 0.3, 0.75, 0.85); this.comp.addPass(this.bloom);
     this.tiltH = new ShaderPass(TILT()); this.tiltH.uniforms.uStaerke.value = tilt; this.comp.addPass(this.tiltH);
