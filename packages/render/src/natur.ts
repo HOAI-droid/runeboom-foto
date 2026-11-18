@@ -148,7 +148,15 @@ function laubLappen(x: number, y: number, z: number, r: number, s: number, farbe
   let g: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, detail); g.deleteAttribute('uv'); g.deleteAttribute('normal'); g = mergeVertices(g, 1e-4);
   const p = g.getAttribute('position');
   for (let i = 0; i < p.count; i++) { const dx = p.getX(i), dy = p.getY(i), dz = p.getZ(i), f = 1 + 0.26 * wr(dx * 2.3, dy * 2.3, dz * 2.3, s) + 0.12 * wr(dx * 5.5, dy * 5.5, dz * 5.5, s + 3) + 0.05 * wr(dx * 12, dy * 12, dz * 12, s + 6); p.setXYZ(i, dx * f * r + x, dy * f * r * (dy < 0 ? 0.62 : 0.85) + y, dz * f * r + z); }
-  const geo = fertig(g, (px, py, pz, nx, ny, nz) => farbe(px, py, pz, nx, ny, nz).clone().multiplyScalar(tup)); raumUV(geo, 0.42, s * 0.37); return geo;
+  const geo = fertig(g, (px, py, pz, nx, ny, nz) => farbe(px, py, pz, nx, ny, nz).clone().multiplyScalar(tup));
+  // UV je Fläche aus Weltraum (Achse nach der Flächennormalen), nicht je Eckpunkt: sonst werden die UVs innerhalb eines Dreiecks quer durch die Textur gezogen
+  const f = geo.toNonIndexed(), P = f.getAttribute('position'), uv = new Float32Array(P.count * 2); geo.dispose();
+  for (let i = 0; i < P.count; i += 3) {
+    const ex = P.getX(i + 1) - P.getX(i), ey = P.getY(i + 1) - P.getY(i), ez = P.getZ(i + 1) - P.getZ(i), fx = P.getX(i + 2) - P.getX(i), fy = P.getY(i + 2) - P.getY(i), fz = P.getZ(i + 2) - P.getZ(i);
+    const ax = Math.abs(ey * fz - ez * fy), ay = Math.abs(ez * fx - ex * fz), az = Math.abs(ex * fy - ey * fx), o = s * 0.37;
+    for (let k = 0; k < 3; k++) { const X = P.getX(i + k), Y = P.getY(i + k), Z = P.getZ(i + k); const [u, w] = ay >= ax && ay >= az ? [X, Z] : ax >= az ? [Z, Y] : [X, Y]; uv[2 * (i + k)] = u * 0.42 + o; uv[2 * (i + k) + 1] = w * 0.42 + o * 0.7; }
+  }
+  f.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return f;
 }
 
 /**
