@@ -54,9 +54,9 @@ const jahreszeit = (c0: N, n: N): N => {
 const uSonne = uniform(LICHT_U.uSonne.value).onFrameUpdate(() => LICHT_U.uSonne.value), uSonneC = uniform(LICHT_U.uSonneC.value).onFrameUpdate(() => LICHT_U.uSonneC.value);
 function licht(p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0, wind: WindWerte | 0 = 0): THREE.Material {
   const m = new THREE.MeshStandardNodeMaterial(p as any);
-  if (wind) { // Wind wie WIND_GLSL in grafik.ts; die Phase je Instanz kommt hier vom Instanzindex
-    const wh = clamp(positionLocal.y.mul(wind[1]), 0, 1), wk = uv().y.mul(0.7).mul(step(uv().x, wind[2])).add(1), wt = uZeit.mul(1.7).add(float(instanceIndex).mul(1.37)).add(positionLocal.x.mul(0.23));
-    const sx = sin(wt).mul(0.7).add(sin(wt.mul(2.3).add(1.7)).mul(0.3)), sz = cos(wt.mul(0.9).add(0.6)).mul(0.7).add(sin(wt.mul(3.1)).mul(0.3)), a = wh.mul(wk).mul(wind[0]);
+  if (wind) { // Wind wie WIND_GLSL in grafik.ts: Fuß fest, nach oben stärker, eine gemeinsame langsame Welle (bei WebGPU ohne Instanzphase: alle schwanken im Gleichtakt)
+    const wh = pow(clamp(positionLocal.y.mul(wind[1]), 0, 1), 1.6), wk = uv().y.mul(0.4).mul(step(uv().x, wind[2])).add(1), wt = uZeit.mul(0.9);
+    const sx = sin(wt).mul(0.75).add(sin(wt.mul(2.1).add(1.3)).mul(0.25)), sz = cos(wt.mul(0.8).add(0.6)).mul(0.75).add(sin(wt.mul(1.7)).mul(0.25)), a = wh.mul(wk).mul(wind[0]);
     m.positionNode = positionLocal.add(vec3(sx.mul(a), 0, sz.mul(a)));
   }
   // nach dem Zusammensetzen der Grundfarbe (Material, Ecken- und Instanzfarbe) die Jahreszeit anwenden

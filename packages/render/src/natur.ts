@@ -407,9 +407,9 @@ function netzFuer(fein: boolean, key: string): THREE.BufferGeometry | undefined 
 }
 function material(): { fest: THREE.Material; gras: THREE.Material; laub: THREE.Material; nadel: THREE.Material } {
   return MAT ??= {
-    fest: FABRIK.licht({ vertexColors: true, map: felsTex(), roughness: 0.9, metalness: 0 }, 1.2), gras: FABRIK.licht({ vertexColors: true, map: grasTex(), alphaTest: 0.4, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.7, [0.2, 1.0, 0.94]),
-    laub: FABRIK.licht({ vertexColors: true, map: laubTex(), alphaTest: 0.5, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 1.1, [0.12, 0.05, 0.87]),
-    nadel: FABRIK.licht({ vertexColors: true, map: nadelTex(), alphaTest: 0.45, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.8, [0.08, 0.05, 0.94])
+    fest: FABRIK.licht({ vertexColors: true, map: felsTex(), roughness: 0.9, metalness: 0 }, 1.2), gras: FABRIK.licht({ vertexColors: true, map: grasTex(), alphaTest: 0.4, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.7, [0.05, 2.0, 0.94]),
+    laub: FABRIK.licht({ vertexColors: true, map: laubTex(), alphaTest: 0.5, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 1.1, [0.028, 0.04, 0.87]),
+    nadel: FABRIK.licht({ vertexColors: true, map: nadelTex(), alphaTest: 0.45, alphaToCoverage: true, roughness: 0.85, metalness: 0 }, 1.2, undefined, 0.5, 0.8, [0.02, 0.04, 0.94])
   };
 }
 

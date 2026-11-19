@@ -30,9 +30,9 @@ const JAHR_GLSL = `vec3 jahreszeit(vec3 c, vec3 n) {
 /** uSonne: Einheitsvektor zur Sonne (bzw. zum Mond), uSonneC: Farbe × Stärke – für das Durchleuchten von Laub gegen das Licht */
 /** Wind: Schwanken mit der Höhe und Flattern der Karten, Phase je Instanz (gleiche Rechnung in knoten.ts) */
 const WIND_GLSL = (w: WindWerte) => `
-float wh = clamp(position.y * ${w[1].toFixed(3)}, 0.0, 1.0);
+float wh = pow(clamp(position.y * ${w[1].toFixed(3)}, 0.0, 1.0), 1.6); // Fuß bleibt fest, nach oben biegt es stärker
 #ifdef USE_UV
-float wk = 1.0 + 0.7 * uv.y * (1.0 - step(${w[2].toFixed(3)}, uv.x));
+float wk = 1.0 + 0.4 * uv.y * (1.0 - step(${w[2].toFixed(3)}, uv.x));
 #else
 float wk = 1.0;
 #endif
@@ -41,9 +41,9 @@ vec2 wph = instanceMatrix[3].xz;
 #else
 vec2 wph = vec2(0.0);
 #endif
-float wt = uZeit * 1.7 + wph.x * 0.23 + wph.y * 0.31;
-transformed.x += (sin(wt) * 0.7 + sin(wt * 2.3 + 1.7) * 0.3) * ${w[0].toFixed(3)} * wh * wk;
-transformed.z += (cos(wt * 0.9 + 0.6) * 0.7 + sin(wt * 3.1) * 0.3) * ${w[0].toFixed(3)} * wh * wk;`;
+float wt = uZeit * 0.9 + (wph.x * 0.07 + wph.y * 0.05); // eine gemeinsame Welle, die langsam über die Fläche läuft (kein Tanzen der Nachbarn)
+transformed.x += (sin(wt) * 0.75 + sin(wt * 2.1 + 1.3) * 0.25) * ${w[0].toFixed(3)} * wh * wk;
+transformed.z += (cos(wt * 0.8 + 0.6) * 0.75 + sin(wt * 1.7) * 0.25) * ${w[0].toFixed(3)} * wh * wk;`;
 export const LICHT_U = { uLicht: { value: lichtTex }, uNacht: { value: 0 }, uLichtFarbe: { value: new THREE.Color('#ffb36a') }, uSonne: { value: new THREE.Vector3(0, 1, 0) }, uSonneC: { value: new THREE.Color('#ffbe6e') } };
 type Lichtquelle = { x: number; z: number; r: number; kegel?: number; geb?: { zielen: number } };
 const LK_FEST = new Uint8Array(LK * LK);
