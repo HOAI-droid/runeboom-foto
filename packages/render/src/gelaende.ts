@@ -10,7 +10,7 @@ export interface BodenNetz { p: Float32Array; n: Float32Array; c: Float32Array; 
 
 const klemme = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const glatt = (a: number, b: number, t: number) => { const u = klemme((t - a) / (b - a)); return u * u * (3 - 2 * u); };
-const ERDWEG = lin('#a68a5c'), WEGDUNKEL = lin('#6a5638'), RANDERDE = lin('#4a3c26'), FELS = lin('#857d70'), FELS_DUNKEL = lin('#5a544b'), ERDE = lin('#6f5a3c'), SAND = lin('#8d8466'), SCHLAMM = lin('#4f4d35'), RAND = lin('#5d5750');
+const KIES = lin('#857c6c'), SAND2 = lin('#b9a77d'), BASALT = lin('#27221f'), GLUTROT = lin('#8c360f'), ERDWEG = lin('#a68a5c'), WEGDUNKEL = lin('#6a5638'), RANDERDE = lin('#4a3c26'), FELS = lin('#857d70'), FELS_DUNKEL = lin('#5a544b'), ERDE = lin('#6f5a3c'), SAND = lin('#8d8466'), SCHLAMM = lin('#4f4d35'), RAND = lin('#5d5750');
 
 /** Normale des glatten Geländes (Mittelpunktsdifferenzen, über Kachelgrenzen hinweg gleich) */
 export function bodenNormale(x: number, z: number, e = 0.5): [number, number, number] {
@@ -44,14 +44,32 @@ function farbeAn(wx: number, wz: number, hv: number, ny: number, S: (x: number, 
   // Steilhänge zeigen Fels (nur dort, wo kein Schnee liegt)
   const steil = glatt(0.2, 0.46, 1 - ny) * (art === 'schnee' ? 0.25 : 1);
   if (steil > 0) { const k = FELS_DUNKEL, f = FELS, t = glatt(0.3, 0.7, m1); const fr = k[0] + (f[0] - k[0]) * t, fg = k[1] + (f[1] - k[1]) * t, fb = k[2] + (f[2] - k[2]) * t; r += (fr - r) * steil * 0.75; g += (fg - g) * steil * 0.75; b += (fb - b) * steil * 0.75; }
-  // Ufer: Sand und feuchter Schlamm, wenn ein Becken in der Nähe ist
-  if (hv < 6.98 && art !== 'l') {
-    let wasser = false; for (let dx = -2; dx <= 2 && !wasser; dx++) for (let dz = -2; dz <= 2; dz++) { const s = S(Math.floor(wx) + dx, Math.floor(wz) + dz); if (s && s.a === 'w') { wasser = true; break; } }
+  // Ufer und Lavarand: Bänder mit unregelmäßiger Breite (Rauschen), dazu Sand-, Kies- und Schlammflecken
+  if (art !== 'w') {
+    let wasser = false, lava = false;
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) { const q = S(Math.floor(wx) + dx, Math.floor(wz) + dz); if (q && q.a === 'w') wasser = true; else if (q && q.a === 'l') lava = true; }
     if (wasser) {
-      const nass = glatt(6.9, 6.4, hv), sand = glatt(6.9, 6.7, hv) * (0.5 + 0.4 * m1) * glatt(0.3, 0.6, m3);
-      r += (SAND[0] - r) * sand * 0.8; g += (SAND[1] - g) * sand * 0.8; b += (SAND[2] - b) * sand * 0.8;
-      r += (SCHLAMM[0] - r) * nass * 0.6; g += (SCHLAMM[1] - g) * nass * 0.6; b += (SCHLAMM[2] - b) * nass * 0.6;
+      const e = hv - WASSER_Y, bw = 0.55 + 0.7 * m3 + 0.35 * m2; // Höhe über dem Spiegel; Bandbreite je Stelle verschieden
+      if (e < bw + 0.5) {
+        const nass = glatt(0.22 + 0.25 * m3, -0.12, e), kies = glatt(bw, 0.05, e) * glatt(0.3, 0.62, m1) * (1 - nass * 0.5), sand = glatt(bw * 0.8, 0.08, e) * glatt(0.48, 0.7, m3) * (1 - kies * 0.6), kv = 0.75 + 0.5 * m1;
+        r += (SAND2[0] - r) * sand * 0.85; g += (SAND2[1] - g) * sand * 0.85; b += (SAND2[2] - b) * sand * 0.85;
+        r += (KIES[0] * kv - r) * kies * 0.85; g += (KIES[1] * kv - g) * kies * 0.85; b += (KIES[2] * kv - b) * kies * 0.85;
+        r += (SCHLAMM[0] - r) * nass * 0.7; g += (SCHLAMM[1] - g) * nass * 0.7; b += (SCHLAMM[2] - b) * nass * 0.7;
+      }
     }
+    if (lava) { // Lava: abgekühlte Basaltkruste mit glimmenden Rissen, nach außen Asche und Fels
+      const e = hv - LAVA_Y, bw = 0.9 + 0.9 * m3, kruste = glatt(bw, -0.1, e) * (0.75 + 0.25 * m1), glut = glatt(0.35, -0.2, e) * glatt(0.55, 0.8, m1) * 0.55;
+      r += (BASALT[0] - r) * kruste; g += (BASALT[1] - g) * kruste; b += (BASALT[2] - b) * kruste;
+      r += (GLUTROT[0] - r) * glut; g += (GLUTROT[1] - g) * glut; b += (GLUTROT[2] - b) * glut;
+    }
+  }
+  // Weg: steter Verlauf mit schwankender Breite, Fahrrinnen, dunkler verdichteter Mitte und erdigem Rand mit Laubstreu
+  const pr = pfadRand(wx, wz);
+  if (pr < 1.5 && art !== 'w') {
+    const rand = glatt(1.5, 0.3, pr) * 0.55, weg = glatt(0.45, -0.35, pr), dm = wx - pfadMitte(wz), rinne = glatt(0.22, 0.04, Math.abs(Math.abs(dm) - 0.62)) * 0.35, k = 0.82 + 0.3 * m1;
+    r += (RANDERDE[0] - r) * rand; g += (RANDERDE[1] - g) * rand; b += (RANDERDE[2] - b) * rand;
+    const er = [ERDWEG[0] * k, ERDWEG[1] * k, ERDWEG[2] * k], dk = [WEGDUNKEL[0] * k, WEGDUNKEL[1] * k, WEGDUNKEL[2] * k], mix = Math.min(1, rinne + glatt(-0.2, -1.2, pr) * 0.3);
+    r += (er[0] + (dk[0] - er[0]) * mix - r) * weg; g += (er[1] + (dk[1] - er[1]) * mix - g) * weg; b += (er[2] + (dk[2] - er[2]) * mix - b) * weg;
   }
   return [r, g, b];
 }

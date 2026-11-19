@@ -162,10 +162,11 @@ function relief(x: number, z: number): number {
 /** Höhe der Ecke (i, j) zwischen den vier Spalten i−1…i × j−1…j: gewichteter Mittelwert über 4 × 4 Spalten (Stufen werden zu Hängen) */
 export function eckeHoehe(i: number, j: number): number {
   const k = hk(i, j), c = eckenCache.get(k); if (c !== undefined) return c;
-  let s = 0, w = 0, frei = true;
-  for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) { const t = oben(i - 2 + a, j - 2 + b); if (t < -900) continue; const g = GW[a] * GW[b]; s += t * g; w += g; if (a > 0 && a < 3 && b > 0 && b < 3) { const r = roh(i - 2 + a, j - 2 + b); if (r && (r.a === 'w' || r.a === 'l' || (HOEHEN.size && HOEHEN.has(hk(i - 2 + a, j - 2 + b))))) frei = false; } }
+  let s = 0, w = 0, frei = true, becken = false;
+  for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) { const t = oben(i - 2 + a, j - 2 + b); if (t < -900) continue; const g = GW[a] * GW[b]; s += t * g; w += g; if (a > 0 && a < 3 && b > 0 && b < 3) { const r = roh(i - 2 + a, j - 2 + b); if (r && (r.a === 'w' || r.a === 'l')) { frei = false; becken = true; } else if (r && HOEHEN.size && HOEHEN.has(hk(i - 2 + a, j - 2 + b))) frei = false; } }
   let v = w > 0 ? s / w : 6;
   if (frei) v += relief(i, j);
+  if (becken) v += (fbm(i, j, 0.38, SEED + 93) - 0.5) * 0.6 + (fbm(i, j, 0.12, SEED + 94) - 0.5) * 0.35; // Ufer und Lavarand wellig, damit die Uferlinie unregelmäßig verläuft
   { const pr = pfadRand(i, j); if (pr < 0.8) v -= 0.13 * clamp01((0.8 - pr) / 1.6); } // Weg liegt etwas tiefer, Ränder laufen sanft aus // sanfte Hügel und Rücken nur in der Darstellung, nicht an Becken, Pfad, Feste und geebneten Stellen
   if (eckenCache.size > 250000) eckenCache.clear();
   eckenCache.set(k, v); return v;

@@ -101,6 +101,7 @@ export const FABRIK = {
   licht: (p: THREE.MeshStandardMaterialParameters, staerke = 1.7, maske?: THREE.Texture, schwelle = 0.5, durch = 0, wind: WindWerte | 0 = 0): THREE.Material => mitLichtkarte(new THREE.MeshStandardMaterial(p), staerke, maske, schwelle, durch, wind),
   wasser: (): THREE.Material => wasserGL(),
   lava: (): THREE.Material => lavaGL(),
+  dampf: (lage: number): THREE.Material => dampfGL(lage),
   himmel: (u: { uTop: { value: THREE.Color }; uBot: { value: THREE.Color }; uFog: { value: THREE.Color } }): THREE.Material => himmelGL(u),
   nebel: (u: NebelU, lage: number, zahl: number): THREE.Material => nebelGL(u, lage, zahl),
   wegLeuchten: (u: { uZeit: { value: number }; uStaerke: { value: number } }): THREE.Material => wegGL(u),
@@ -175,25 +176,48 @@ const wasserGL = () => new THREE.ShaderMaterial({
       gl_FragColor = vec4(c, alpha);
     }`
 });
+/**
+ * Lava: wandernde Strömung (verwirbeltes Rauschen), kochende Blasen (je 2,4-m-Zelle wächst eine Blase, wölbt sich und platzt mit einem Blitz),
+ * glühende Risse; am Rand (aTiefe → 0) kühlt sie zu dunkler Kruste ab und blendet aus. Gleiche Rechnung in knoten.ts.
+ */
 const lavaGL = () => new THREE.ShaderMaterial({
-  uniforms: { uZeit: ZEIT }, vertexShader: VS,
-  fragmentShader: `uniform float uZeit; varying vec3 vW; ${NOISE_GLSL}
+  uniforms: { uZeit: ZEIT }, vertexShader: WVS, transparent: true, depthWrite: false,
+  fragmentShader: `uniform float uZeit; varying vec3 vW; varying float vT; ${NOISE_GLSL}
     float zellen(vec2 p, float t) { vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0;
       for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)); vec2 o = h2(i + g);
         o = 0.5 + 0.4 * sin(t * 0.35 + 6.2831 * o); float d = length(g + o - f); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
       return d2 - d1; }
     void main(){
-      vec2 p = floor(vW.xz * 8.0) / 8.0 * 0.5; float t = uZeit;
-      vec2 q = p * 0.9 + vec2(fbm(p * 0.6 + t * 0.06), fbm(p * 0.6 - t * 0.05 + 3.7)) * 1.4;
-      float riss = zellen(q * 1.3, t), adern = fbm(q * 2.2 + t * 0.15);
-      float see = smoothstep(0.5, 0.68, fbm(q * 0.7 + vec2(t * 0.04, -t * 0.03)));
+      float t = uZeit; vec2 p = vW.xz * 0.5;
+      vec2 fl = vec2(fbm(p * 0.5 + vec2(t * 0.05, 0.0)), fbm(p * 0.5 + vec2(3.7, -t * 0.04)));
+      vec2 q = p * 0.9 + fl * 1.6;
+      float riss = zellen(q * 1.3, t * 1.4), adern = fbm(q * 2.2 + t * 0.2);
+      float see = smoothstep(0.5, 0.68, fbm(q * 0.7 + vec2(t * 0.05, -t * 0.04)));
       float hitze = max(max(smoothstep(0.42, 0.04, riss), see * 0.9), smoothstep(0.64, 0.9, adern) * 0.6);
-      hitze = clamp(hitze * (0.85 + 0.15 * sin(t * 2.2 + adern * 8.0 + p.x * 1.7)), 0.0, 1.0);
-      vec3 kruste = mix(vec3(0.07, 0.02, 0.015), vec3(0.22, 0.05, 0.02), fbm(q * 4.0)) + vec3(0.35, 0.06, 0.0) * smoothstep(0.7, 0.2, riss) * 0.6;
+      vec2 bg = vW.xz / 2.4, bi = floor(bg), bf = fract(bg), bh = h2(bi); float ph = fract(t * (0.16 + 0.2 * bh.x) + bh.y * 7.0);
+      vec2 bc = 0.3 + 0.4 * h2(bi + 7.0); float bd = length(bf - bc), br = 0.04 + ph * 0.28;
+      float blase = smoothstep(br, br - 0.05, bd) * smoothstep(br - 0.12, br - 0.04, bd) * (1.0 - ph * 0.5) + smoothstep(0.14, 0.0, bd) * smoothstep(0.8, 0.94, ph) * (1.0 - smoothstep(0.94, 1.0, ph)) * 1.4;
+      hitze = clamp(max(hitze, blase), 0.0, 1.0) * (0.85 + 0.15 * sin(t * 2.2 + adern * 8.0 + p.x * 1.7));
+      hitze *= smoothstep(0.03, 0.8, vT);
+      vec3 kruste = mix(vec3(0.07, 0.02, 0.015), vec3(0.22, 0.05, 0.02), fbm(q * 4.0)) + vec3(0.35, 0.06, 0.0) * smoothstep(0.7, 0.2, riss) * 0.6 * smoothstep(0.1, 0.7, vT);
       vec3 glut = mix(vec3(0.75, 0.10, 0.02), vec3(1.0, 0.38, 0.05), smoothstep(0.25, 0.65, hitze));
       glut = mix(glut, vec3(1.0, 0.72, 0.22), smoothstep(0.72, 0.95, hitze));
       glut = mix(glut, vec3(1.0, 0.95, 0.75), smoothstep(0.97, 1.0, hitze));
-      gl_FragColor = vec4(mix(kruste * 1.4, glut * 1.7, smoothstep(0.12, 0.45, hitze)) + vec3(0.15, 0.03, 0.0), 1.0);
+      vec3 c = mix(kruste * 1.4, glut * 1.7, smoothstep(0.12, 0.45, hitze)) + vec3(0.15, 0.03, 0.0) * smoothstep(0.1, 0.6, vT);
+      gl_FragColor = vec4(c, smoothstep(0.02, 0.3, vT));
+    }`
+});
+/** Dampf über der Lava: zwei durchscheinende Schichten mit aufsteigendem, verwirbeltem Rauschen (lage 0 = unten, 1 = oben) */
+const dampfGL = (lage: number) => new THREE.ShaderMaterial({
+  uniforms: { uZeit: ZEIT, uLage: { value: lage } }, vertexShader: WVS, transparent: true, depthWrite: false,
+  fragmentShader: `uniform float uZeit, uLage; varying vec3 vW; varying float vT; ${NOISE_GLSL}
+    void main(){
+      float t = uZeit; vec2 p = vW.xz * 0.3 + vec2(t * 0.04, t * 0.03) + uLage * 5.0;
+      vec2 w = vec2(fbm3(p + vec2(0.0, -t * 0.12)), fbm3(p + vec2(4.0, t * 0.1)));
+      float n = fbm3(p * 1.3 + w * 1.5 + vec2(0.0, -t * 0.2));
+      float a = smoothstep(0.38, 0.78, n) * smoothstep(-0.2, 0.5, vT) * 0.3 * (1.0 - uLage * 0.4);
+      vec3 c = mix(vec3(0.62, 0.58, 0.56), vec3(1.0, 0.6, 0.3), 0.3 * (1.0 - uLage));
+      gl_FragColor = vec4(c, a);
     }`
 });
 export let WASSER: THREE.Material = wasserGL(), LAVA: THREE.Material = lavaGL();

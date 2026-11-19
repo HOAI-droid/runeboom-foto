@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { FABRIK } from './grafik.ts';
+import { FABRIK, GLOW } from './grafik.ts';
 import { felsTex, grasTex } from './texturen.ts';
 
 /**
@@ -10,7 +10,7 @@ import { felsTex, grasTex } from './texturen.ts';
  */
 
 /** Arten in der Instanzliste (Stufe je Instanz: 8 Werte) */
-export const NAT = { laub: 0, tanne: 1, herbst: 2, leucht: 3, busch: 4, tot: 5, fels: 6, gras: 7, blume: 8, farn: 9, bluete: 10, schilf: 11 } as const;
+export const NAT = { laub: 0, tanne: 1, herbst: 2, leucht: 3, busch: 4, tot: 5, fels: 6, gras: 7, blume: 8, farn: 9, bluete: 10, schilf: 11, kristall: 12 } as const;
 /** Listenaufbau je Instanz: Art, x, y, z (Kachel-Koordinaten), Drehung, Größe, Variante, Tönung (0 normal, 1 Asche) */
 export const NAT_SCHRITT = 8;
 
@@ -352,12 +352,38 @@ function schilf(v: number, fein = true): THREE.BufferGeometry {
   return halme(v + 7, 1.9, 0.9, ['#46662a', '#b4b86a'], 4, t);
 }
 
+/** Ein facettierter Kristall: Sechskantschaft mit Spitze, flach schattiert (Farbe je Fläche aus Licht und Höhe), geneigt; leuchtet über das GLOW-Material */
+function kristallPrisma(h: number, r: number, spitze: number, neigung: number, az: number, dx: number, dz: number, seed: number): THREE.BufferGeometry {
+  const schaft = new THREE.CylinderGeometry(r * 0.78, r, h, 6, 1, true); schaft.translate(0, h / 2, 0);
+  const kopf = new THREE.ConeGeometry(r * 0.78, spitze, 6, 1, true); kopf.translate(0, h + spitze / 2, 0);
+  schaft.deleteAttribute('uv'); kopf.deleteAttribute('uv');
+  const g = mergeGeometries([schaft, kopf], false)!.toNonIndexed(), P = g.getAttribute('position'), ly = new Float32Array(P.count);
+  for (let i = 0; i < P.count; i++) ly[i] = P.getY(i);
+  g.rotateY(rz(seed, 1, 0, 130) * 6.283); g.rotateX(neigung); g.rotateY(az); g.translate(Math.cos(az) * dx, -0.05, Math.sin(az) * dx + dz * 0); g.computeVertexNormals();
+  const N = g.getAttribute('normal'), col = new Float32Array(P.count * 3), L = new THREE.Vector3(-0.5, 0.8, 0.4).normalize(), c = new THREE.Color(), c0 = new THREE.Color('#1c6aa4'), c1 = new THREE.Color('#68dcff'), c2 = new THREE.Color('#effeff');
+  for (let i = 0; i < P.count; i++) {
+    const face = Math.floor(i / 3), licht = 0.5 + 0.5 * Math.max(0, N.getX(i) * L.x + N.getY(i) * L.y + N.getZ(i) * L.z), t = Math.min(1, ly[i] / (h + spitze));
+    c.copy(c0).lerp(c1, Math.min(1, t * 1.4)); if (ly[i] > h) c.lerp(c2, 0.6 * (ly[i] - h) / spitze);
+    c.multiplyScalar((0.5 + 0.75 * licht) * (0.88 + 0.24 * rz(face, seed, 2, 130)) * 1.45); col[3 * i] = c.r; col[3 * i + 1] = c.g; col[3 * i + 2] = c.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.deleteAttribute('normal'); return g;
+}
+/** Kristallgruppe: ein hoher Hauptkristall und viele kleinere, unterschiedlich geneigt, dazu kleine Splitter */
+function kristall(v: number): THREE.BufferGeometry {
+  const R = (i: number) => rz(i, v, 7, 120), t: THREE.BufferGeometry[] = [], n = 8 + Math.floor(R(1) * 6);
+  for (let k = 0; k < n; k++) {
+    const haupt = k === 0, h = haupt ? 2.4 + 1.8 * R(2) : 0.5 + 1.9 * rz(k, v, 3, 120), r = haupt ? 0.34 + 0.12 * R(3) : 0.1 + 0.2 * rz(k, v, 4, 120);
+    const az = k * 2.4 + R(5) * 6, d = haupt ? 0 : 0.3 + 0.95 * rz(k, v, 6, 120) * (1 + k * 0.06), neigung = haupt ? 0.04 + 0.1 * R(7) : 0.15 + 0.5 * rz(k, v, 8, 120);
+    t.push(kristallPrisma(h, r, r * (1.2 + 0.9 * rz(k, v, 9, 120)), neigung, az, d, 0, k + v * 31));
+  }
+  return mergeGeometries(t, false)!;
+}
 const BLUMEN = ['#dcc878', '#c880a8', '#96b8d8', '#ece8e0'];
 const NETZE: (Map<string, THREE.BufferGeometry> | null)[] = [null, null];
 let MAT: { fest: THREE.Material; gras: THREE.Material; laub: THREE.Material; nadel: THREE.Material } | null = null;
 /** Netze je Detailstufe (1 = nah, fein; 0 = mittlere Entfernung, wenige Dreiecke); einmal je Art, geteilt von allen Kacheln */
 /** Zahl der Varianten je Art (prozedural erzeugt, Instanzen wählen eine aus) */
-const NV: Record<number, number> = { [NAT.laub]: 16, [NAT.tanne]: 12, [NAT.herbst]: 16, [NAT.leucht]: 8, [NAT.busch]: 5, [NAT.tot]: 3, [NAT.fels]: 6, [NAT.gras]: 6, [NAT.blume]: 4, [NAT.farn]: 3, [NAT.bluete]: 4, [NAT.schilf]: 3 };
+const NV: Record<number, number> = { [NAT.laub]: 16, [NAT.tanne]: 12, [NAT.herbst]: 16, [NAT.leucht]: 8, [NAT.busch]: 5, [NAT.tot]: 3, [NAT.fels]: 6, [NAT.gras]: 6, [NAT.blume]: 4, [NAT.farn]: 3, [NAT.bluete]: 4, [NAT.schilf]: 3, [NAT.kristall]: 6 };
 /** Netz einer Art und Variante, erst beim ersten Bedarf gebaut (die Baumgerüste kosten etwas Rechenzeit) */
 function netzFuer(fein: boolean, key: string): THREE.BufferGeometry | undefined {
   const L = fein ? 1 : 0, cache = (NETZE[L] ??= new Map<string, THREE.BufferGeometry>()); let g = cache.get(key); if (g) return g;
@@ -372,6 +398,7 @@ function netzFuer(fein: boolean, key: string): THREE.BufferGeometry | undefined 
     case NAT.fels: g = fels(v, fein); break;
     case NAT.farn: g = farn(v, fein); break;
     case NAT.schilf: g = schilf(v, fein); break;
+    case NAT.kristall: g = kristall(v); break;
     case NAT.bluete: g = bluetenbusch(v, fein); break;
     case NAT.gras: g = gras(v); break;
     case NAT.blume: g = blume(v, BLUMEN[v % BLUMEN.length]); break;
@@ -394,8 +421,8 @@ export function baueNatur(liste: Float32Array, schatten: boolean): THREE.Object3
   }
   const aus: THREE.Object3D[] = [], mat4 = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), sk = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), farbe = new THREE.Color();
   for (const [key, idx] of gruppen) {
-    const geo = netzFuer(schatten, key); if (!geo) continue; const art = +key.split('/')[0], klein = art === NAT.gras || art === NAT.blume || art === NAT.farn || art === NAT.schilf;
-    const mesh = new THREE.InstancedMesh(geo, art === NAT.farn ? M.nadel : klein ? M.gras : art === NAT.fels ? M.fest : art === NAT.tanne ? M.nadel : M.laub, idx.length);
+    const geo = netzFuer(schatten, key); if (!geo) continue; const art = +key.split('/')[0], klein = art === NAT.gras || art === NAT.blume || art === NAT.farn || art === NAT.schilf || art === NAT.kristall;
+    const mesh = new THREE.InstancedMesh(geo, art === NAT.kristall ? GLOW : art === NAT.farn ? M.nadel : klein ? M.gras : art === NAT.fels ? M.fest : art === NAT.tanne ? M.nadel : M.laub, idx.length);
     idx.forEach((i, k) => {
       const X = liste[i + 1], Z = liste[i + 3], baum = art <= NAT.tot || art === NAT.leucht || art === NAT.busch;
       pos.set(X, liste[i + 2], Z); q.setFromAxisAngle(up, liste[i + 4]);

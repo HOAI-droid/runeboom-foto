@@ -82,7 +82,7 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     // Gras: Dichte nach Abstand zu Weg und Wasser, im Wald kürzer; mehrere Büschel je Block mit Versatz
     const pr = pfadRand(x + 0.5, z + 0.5);
     let wd = 9; for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) { const q = S(x + dx, z + dz); if (q && q.a === 'w') wd = Math.min(wd, Math.hypot(dx, dz)); }
-    const dichte = Math.min(1, Math.max(0, (pr - 0.2) / 1.6)) * Math.min(1, Math.max(0, (wd - 0.9) / 2.2)), zahl = Math.floor(dichte * (wald > 0.52 ? 2.2 : 3.4) + h3(x, 70, z));
+    const dichte = Math.min(1, Math.max(0, (pr - 0.2) / 1.6)) * Math.min(1, Math.max(0, (wd - 0.9 - 1.2 * fbm(x, z, 0.3, seed() + 97)) / 2.2)) * (0.55 + 0.9 * fbm(x, z, 0.2, seed() + 98)), zahl = Math.floor(dichte * (wald > 0.52 ? 2.2 : 3.4) + h3(x, 70, z));
     for (let q = 0; q < Math.min(4, zahl); q++) { const gx = lx + (h3(x, 71 + q, z) - 0.5) * 0.9, gz = lz + (h3(x, 75 + q, z) - 0.5) * 0.9; natur.push(7, gx, bodenHoehe(ox + gx, oz + gz), gz, h3(x, 79 + q, z) * 6.283, (wald > 0.52 ? 0.7 : 0.85) + h3(x, 83 + q, z) * 0.5, Math.floor(h3(x, 87 + q, z) * 6), 0); }
     // Wegrand: trockene Büschel und Kiesel
     if (pr > -0.2 && pr < 1.4) {
@@ -96,14 +96,27 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     const s = S(x, z); if (!s || (s.a !== 'gras' && s.a !== 'w')) continue;
     let nah = false; for (let dx = -1; dx <= 1 && !nah; dx++) for (let dz = -1; dz <= 1; dz++) { const q = S(x + dx, z + dz); if (q && (s.a === 'w' ? q.a !== 'w' : q.a === 'w')) { nah = true; break; } }
     if (!nah) continue;
-    const jx = h3(x, 41, z), jz = h3(x, 42, z), lx = x - ox + 0.1 + jx * 0.8, lz = z - oz + 0.1 + jz * 0.8, y = bodenHoehe(x + 0.1 + jx * 0.8, z + 0.1 + jz * 0.8);
-    if (h3(x, 43, z) < 0.55) natur.push(11, lx, y - 0.1, lz, jx * 6.283, 0.8 + jz * 0.6, Math.floor(h3(x, 44, z) * 3), 0);
-    if (h3(x, 45, z) < 0.35) natur.push(6, lx + 0.2, y - 0.05, lz - 0.2, jz * 6.283, 0.25 + h3(x, 46, z) * 0.35, Math.floor(h3(x, 47, z) * 6), 0);
+    const jx = h3(x, 41, z), jz = h3(x, 42, z), lx = x - ox + 0.1 + jx * 0.8, lz = z - oz + 0.1 + jz * 0.8, y = bodenHoehe(x + 0.1 + jx * 0.8, z + 0.1 + jz * 0.8), rv = fbm(x, z, 0.25, seed() + 99);
+    if (h3(x, 43, z) < 0.2 + 0.55 * rv) natur.push(11, lx, y - 0.1, lz, jx * 6.283, 0.7 + jz * 0.7, Math.floor(h3(x, 44, z) * 3), 0); // Schilf nur in Gruppen
+    for (let q = 0; q < 4; q++) if (h3(x, 45 + q, z) < 0.12 + 0.5 * (1 - rv)) { const kx = lx + (h3(x, 100 + q, z) - 0.5) * 1.2, kz = lz + (h3(x, 104 + q, z) - 0.5) * 1.2; natur.push(6, kx, bodenHoehe(ox + kx, oz + kz) - 0.04, kz, h3(x, 108 + q, z) * 6.283, 0.08 + h3(x, 112 + q, z) * 0.3, Math.floor(h3(x, 116 + q, z) * 6), 0); } // Kies und Steine, mal viel, mal wenig
+    if (h3(x, 120, z) < 0.04) natur.push(6, lx, y - 0.1, lz, jz * 6.283, 0.7 + h3(x, 121, z) * 0.7, Math.floor(h3(x, 122, z) * 6), 0); // gelegentlich ein Findling
+  }
+  if (GLATT.an && stufe >= 3) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) { // Lavarand: Basaltbrocken und Aschesteine
+    const s = S(x, z); if (!s || s.a === 'l' || s.a === 'w') continue;
+    let nah = false; for (let dx = -2; dx <= 2 && !nah; dx++) for (let dz = -2; dz <= 2; dz++) { const q = S(x + dx, z + dz); if (q && q.a === 'l') { nah = true; break; } }
+    if (!nah) continue;
+    const jx = h3(x, 131, z), jz = h3(x, 132, z), lx = x - ox + 0.1 + jx * 0.8, lz = z - oz + 0.1 + jz * 0.8;
+    for (let q = 0; q < 2; q++) if (h3(x, 133 + q, z) < 0.35) { const kx = lx + (h3(x, 140 + q, z) - 0.5), kz = lz + (h3(x, 144 + q, z) - 0.5); natur.push(6, kx, bodenHoehe(ox + kx, oz + kz) - 0.05, kz, h3(x, 148 + q, z) * 6.283, 0.2 + h3(x, 152 + q, z) * 0.7, Math.floor(h3(x, 156 + q, z) * 6), 1); }
   }
   for (const o of orte()) {
     if (Math.floor(o.x / CH) !== cx || Math.floor(o.z / CH) !== cz) continue;
     const [X, Y, Z] = fein(o.x, o.z);
-    if (o.typ === 'kristall') kristalle(F, X, Y, Z, r, 9);
+    if (o.typ === 'kristall') {
+      if (GLATT.an) { // feine Kristalle: Hauptgruppe und kleinere Gruppen ringsum, facettierte Prismen statt Voxel (natur.ts)
+        const hx = o.x + 0.5 - ox, hz = o.z + 0.5 - oz; natur.push(12, hx, bodenHoehe(o.x + 0.5, o.z + 0.5) - 0.15, hz, r() * 6.283, 1.0 + r() * 0.3, Math.floor(r() * 6), 0);
+        for (let k = 0; k < 5; k++) { const a = r() * 6.283, d = 2.5 + r() * 4.5, kx = hx + Math.cos(a) * d, kz = hz + Math.sin(a) * d; if (kx > 0 && kx < CH && kz > 0 && kz < CH) natur.push(12, kx, bodenHoehe(ox + kx, oz + kz) - 0.1, kz, r() * 6.283, 0.35 + r() * 0.35, Math.floor(r() * 6), 0); }
+      } else kristalle(F, X, Y, Z, r, 9);
+    }
     if (o.typ === 'riss') riss(F, X, Y, Z);
   }
   const innen: Voxel[] = [];

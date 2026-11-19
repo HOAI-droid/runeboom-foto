@@ -31,6 +31,7 @@ export class WeltAnsicht {
   readonly NEBEL_U = { uZeit: ZEIT, uMaske: { value: this.nebelTex }, uFarbe: { value: new THREE.Color('#efe9dd') }, uDichte: { value: 0.24 }, uDunst: { value: 0 } };
   private UEBER: THREE.Material;
   private BODEN: THREE.Material;
+  private dampfMat: THREE.Material[] | null = null;
   onUebersicht: () => void = () => {};
   /** Änderungen am Bewuchs einer Kachel (gefällte Bäume, abgebaute Felsen) */
   aenderungen: (cx: number, cz: number) => [number, number, string][] = () => [];
@@ -80,7 +81,7 @@ export class WeltAnsicht {
     }
     if (r.natur.length) for (const o of baueNatur(r.natur, stufe >= 3)) grp.add(o);
     const extra: THREE.Object3D[] = [];
-    if (r.wasser.length) extra.push(becken(r.wasser, WASSER)); if (r.lava.length) extra.push(becken(r.lava, LAVA));
+    if (r.wasser.length) extra.push(becken(r.wasser, WASSER)); if (r.lava.length) { extra.push(becken(r.lava, LAVA)); if (stufe >= 2 && this.detail >= 0.7) for (const [lage, hoch] of [[0, 0.55], [1, 1.5]]) { const d = becken(r.lava, (this.dampfMat ??= [FABRIK.dampf(0), FABRIK.dampf(1)])[lage]); d.position.y = hoch; d.renderOrder = 6; extra.push(d); } } // Dampf: zwei Schichten über der Lava
     for (const e of extra) this.gruppe.add(e);
     this.gruppe.add(grp); this.geladen.set(k, { grp, extra, cx, cz, stufe });
     this.maske[(cz + this.NCH / 2) * this.NCH + (cx + this.NCH / 2)] = stufe >= 3 ? 255 : stufe === 2 ? 210 : 128; this.maskeTex.needsUpdate = true;

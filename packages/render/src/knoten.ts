@@ -96,7 +96,7 @@ function wasser(): THREE.Material {
   return m;
 }
 function lava(): THREE.Material {
-  const m = new THREE.MeshBasicNodeMaterial({ fog: false });
+  const m = new THREE.MeshBasicNodeMaterial({ fog: false, transparent: true, depthWrite: false }), tiefeA = attribute('aTiefe', 'float');
   const zellen = Fn(([p, t]: N[]) => {
     const i = floor(p), f = fract(p), d1 = float(8).toVar(), d2 = float(8).toVar();
     for (let y = -1; y <= 1; y++) for (let x = -1; x <= 1; x++) {
@@ -105,18 +105,35 @@ function lava(): THREE.Material {
     }
     return d2.sub(d1);
   }).setLayout({ name: 'zellen', type: 'float', inputs: [{ name: 'p', type: 'vec2' }, { name: 't', type: 'float' }] });
+  // gleiche Rechnung wie lavaGL() in grafik.ts: Strömung, Blasen, Risse, Kruste am Rand
   m.colorNode = Fn(() => {
-    const p = floor(positionWorld.xz.mul(8)).div(8).mul(0.5), t = uZeit;
-    const q = p.mul(0.9).add(vec2(fbm(p.mul(0.6).add(t.mul(0.06))), fbm(p.mul(0.6).sub(t.mul(0.05)).add(3.7))).mul(1.4)).toVar();
-    const riss = zellen(q.mul(1.3), t).toVar(), adern = fbm(q.mul(2.2).add(t.mul(0.15))).toVar();
-    const see = smoothstep(0.5, 0.68, fbm(q.mul(0.7).add(vec2(t.mul(0.04), t.mul(-0.03)))));
+    const t = uZeit, p = positionWorld.xz.mul(0.5);
+    const fl = vec2(fbm(p.mul(0.5).add(vec2(t.mul(0.05), 0))), fbm(p.mul(0.5).add(vec2(3.7, t.mul(-0.04)))));
+    const q = p.mul(0.9).add(fl.mul(1.6)).toVar();
+    const riss = zellen(q.mul(1.3), t.mul(1.4)).toVar(), adern = fbm(q.mul(2.2).add(t.mul(0.2))).toVar();
+    const see = smoothstep(0.5, 0.68, fbm(q.mul(0.7).add(vec2(t.mul(0.05), t.mul(-0.04)))));
     const hitze0 = max(max(smoothstep(0.42, 0.04, riss), see.mul(0.9)), smoothstep(0.64, 0.9, adern).mul(0.6));
-    const hitze = clamp(hitze0.mul(sin(t.mul(2.2).add(adern.mul(8)).add(p.x.mul(1.7))).mul(0.15).add(0.85)), 0, 1).toVar();
-    const kruste = mix(vec3(0.07, 0.02, 0.015), vec3(0.22, 0.05, 0.02), fbm(q.mul(4))).add(vec3(0.35, 0.06, 0).mul(smoothstep(0.7, 0.2, riss)).mul(0.6));
+    const bg = positionWorld.xz.div(2.4), bi = floor(bg), bf = fract(bg), bh = h2(bi), ph = fract(t.mul(bh.x.mul(0.2).add(0.16)).add(bh.y.mul(7)));
+    const bc = h2(bi.add(7)).mul(0.4).add(0.3), bd = length(bf.sub(bc)), br = ph.mul(0.28).add(0.04);
+    const blase = smoothstep(br, br.sub(0.05), bd).mul(smoothstep(br.sub(0.12), br.sub(0.04), bd)).mul(ph.mul(0.5).oneMinus()).add(smoothstep(0.14, 0, bd).mul(smoothstep(0.8, 0.94, ph)).mul(smoothstep(0.94, 1, ph).oneMinus()).mul(1.4));
+    const hitze = clamp(max(hitze0, blase), 0, 1).mul(sin(t.mul(2.2).add(adern.mul(8)).add(p.x.mul(1.7))).mul(0.15).add(0.85)).mul(smoothstep(0.03, 0.8, tiefeA)).toVar();
+    const kruste = mix(vec3(0.07, 0.02, 0.015), vec3(0.22, 0.05, 0.02), fbm(q.mul(4))).add(vec3(0.35, 0.06, 0).mul(smoothstep(0.7, 0.2, riss)).mul(0.6).mul(smoothstep(0.1, 0.7, tiefeA)));
     const glut = mix(vec3(0.75, 0.1, 0.02), vec3(1, 0.38, 0.05), smoothstep(0.25, 0.65, hitze)).toVar();
     glut.assign(mix(glut, vec3(1, 0.72, 0.22), smoothstep(0.72, 0.95, hitze)));
     glut.assign(mix(glut, vec3(1, 0.95, 0.75), smoothstep(0.97, 1, hitze)));
-    return vec4(mix(kruste.mul(1.4), glut.mul(1.7), smoothstep(0.12, 0.45, hitze)).add(vec3(0.15, 0.03, 0)), 1);
+    const c = mix(kruste.mul(1.4), glut.mul(1.7), smoothstep(0.12, 0.45, hitze)).add(vec3(0.15, 0.03, 0).mul(smoothstep(0.1, 0.6, tiefeA)));
+    return vec4(c, smoothstep(0.02, 0.3, tiefeA));
+  })();
+  return m;
+}
+function dampf(lage: number): THREE.Material {
+  const m = new THREE.MeshBasicNodeMaterial({ fog: false, transparent: true, depthWrite: false }), tiefeA = attribute('aTiefe', 'float');
+  m.colorNode = Fn(() => {
+    const t = uZeit, p = positionWorld.xz.mul(0.3).add(vec2(t.mul(0.04), t.mul(0.03))).add(lage * 5);
+    const w = vec2(fbm3(p.add(vec2(0, t.mul(-0.12)))), fbm3(p.add(vec2(4, t.mul(0.1)))));
+    const n = fbm3(p.mul(1.3).add(w.mul(1.5)).add(vec2(0, t.mul(-0.2))));
+    const a = smoothstep(0.38, 0.78, n).mul(smoothstep(-0.2, 0.5, tiefeA)).mul(0.3 * (1 - lage * 0.4));
+    return vec4(mix(vec3(0.62, 0.58, 0.56), vec3(1, 0.6, 0.3), 0.3 * (1 - lage)), a);
   })();
   return m;
 }
@@ -208,7 +225,7 @@ export async function webgpuRenderer(canvas: HTMLCanvasElement, ueberWebGL = fal
   r.toneMapping = THREE.ACESFilmicToneMapping; r.outputColorSpace = THREE.SRGBColorSpace;
   r.setPixelRatio(Math.min(devicePixelRatio || 1, 1.6));
   Object.assign(FABRIK, {
-    gpu: true, licht, wasser, lava, himmel, nebel, wegLeuchten, kegel,
+    gpu: true, licht, wasser, lava, dampf, himmel, nebel, wegLeuchten, kegel,
     post: (_r: unknown, scene: THREE.Scene, camera: THREE.Camera, tilt: number) => new NachbearbeitungGPU(r, scene, camera, tilt)
   });
   materialienNeu();
