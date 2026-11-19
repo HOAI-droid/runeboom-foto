@@ -14,6 +14,7 @@ import {
 import { RISSE } from '@runeboom/core';
 import { rng, type Ruine } from '@runeboom/core';
 import { glatteBurg, GLATT } from './glatt.ts';
+import { GlattSchar, glatteWesen, type WesenArt } from './wesen.ts';
 
 // ---------- Modelle der Gebäude (halbe Voxel, Mitte bei 0) ----------
 const modellCache = new Map<string, THREE.Group>();
@@ -400,7 +401,7 @@ const SPAENE: Record<Res, string[]> = { holz: ['#c9a36a', '#8a6340', '#b48a5a'],
 /** Alles, was sich bewegt oder gebaut wird: Gebäude, Wesen, Arbeiter, Bogenschützen, Geschosse, Teilchen, Balken, Vorschau. */
 export class Objekte {
   private gebaeude = new Map<number, THREE.Group>();
-  private wesen: Record<string, Schar>;
+  private wesen: Record<string, Schar | GlattSchar>;
   private arbeiter: Record<Res, Schar>;
   private baumeister: Schar; private schuetzen: Schar;
   private traglast: Record<Res, THREE.InstancedMesh>;
@@ -420,7 +421,7 @@ export class Objekte {
   /** höchstens so viele Bürger zeigen (Leistung) */
   buergerMax = 150;
   private pfeilListe: Geb[] = []; private pfeilZeit = 0; private mauerStufen = new Map<number, number>();
-  private feuer: Schar; private panzer: Schar;
+  private feuer: Schar | GlattSchar; private panzer: Schar | GlattSchar;
   private strahlen: THREE.InstancedMesh; private blitze: { a: THREE.Vector3; b: THREE.Vector3; t: number }[] = []; private blitzMesh: THREE.InstancedMesh;
   private schild: THREE.Mesh; private kegel: THREE.Mesh[] = [];
 
@@ -434,7 +435,11 @@ export class Objekte {
   constructor(private scene: THREE.Scene, private spiel: Spiel) {
     this.tiere = new Tierwelt(scene, spiel);
     const mk = (fn: (g: Grid) => void) => { const g = new Grid(); fn(g); return g; };
-    this.wesen = {
+    const gs = (art: WesenArt, max: number, schatten = true) => new GlattSchar(glatteWesen(art), max, scene, schatten); // glatte Wesen (Foto-Look)
+    this.wesen = GLATT.an ? {
+      moorwicht: gs('moorwicht', 500), wolf: gs('wolf', 150), wolfDunkel: gs('wolfDunkel', 150), troll: gs('troll', 60), drachling: gs('drachling', 60), rochen: gs('rochen', 40), aschegeist: gs('aschegeist', 60),
+      steinwerfer: gs('steinwerfer', 60), schamane: gs('schamane', 40), schildwaechter: gs('schildwaechter', 60), rissfuerst: gs('rissfuerst', 6)
+    } : {
       moorwicht: new Schar(mk((g) => moorwicht(g, 0, 0, 0, 0)), 0.2, 500, scene, true, BAUPLAN.moorwicht),
       wolf: new Schar(mk((g) => wolf(g, 0, 0, 0, 0)), 0.22, 150, scene, true, WOLF),
       wolfDunkel: new Schar(mk((g) => wolf(g, 0, 0, 0, 0, true)), 0.22, 150, scene, true, WOLF),
@@ -489,8 +494,8 @@ export class Objekte {
     for (const m of [this.ring, this.lichtRing, this.auswahl]) { m.visible = false; m.renderOrder = 30; scene.add(m); }
     for (const g of spiel.gebaeude) this.neuesGeb(g);
     // v0.3: Drachenfeuer nur beim Angriff, Panzer der späten Trolle, Strahlen, Blitze, Schild, Ruinen
-    this.feuer = new Schar(mk((g) => drachenFeuer(g)), 0.3, 60, scene, false);
-    this.panzer = new Schar(mk((g) => trollPanzer(g)), 0.3, 60, scene, false);
+    this.feuer = GLATT.an ? gs('drachenFeuer', 60, false) : new Schar(mk((g) => drachenFeuer(g)), 0.3, 60, scene, false);
+    this.panzer = GLATT.an ? gs('trollPanzer', 60, false) : new Schar(mk((g) => trollPanzer(g)), 0.3, 60, scene, false);
     const strahlGeo = new THREE.BoxGeometry(0.16, 0.16, 1); strahlGeo.translate(0, 0, 0.5);
     for (const q of RISSE) {
       const y0 = hoehe(q.x, q.z), mk = (r: number, farbe: string) => {
