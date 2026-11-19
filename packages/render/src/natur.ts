@@ -141,17 +141,17 @@ interface Streuung { h: number; s: number; l: number; form: [number, number]; au
 type Art = 'eiche' | 'birke' | 'ahorn' | 'leucht';
 interface Preset { stamm: [number, number]; dicke: [number, number]; aeste: [number, number]; breite: [number, number]; hoehe: [number, number]; steil: [number, number]; blatt: [number, number]; dichte: [number, number]; farben: [string, string, string]; rinde: [string, string]; ausreisser: string[]; form: [number, number]; streuung: [number, number, number] }
 const PRESETS: Record<Art, Preset> = {
-  eiche: { stamm: [2.2, 3.6], dicke: [0.4, 0.6], aeste: [4, 6], breite: [1.0, 1.6], hoehe: [0.7, 1.05], steil: [0.35, 0.8], blatt: [0.9, 1.15], dichte: [0.85, 1.3], farben: ['#1c3020', '#3b5a2c', '#78904c'], rinde: ['#2c2118', '#5a4630'], ausreisser: ['#8c9040', '#2a4024', '#a88034'], form: [0.8, 1.3], streuung: [0.05, 0.22, 0.12] },
-  birke: { stamm: [3.4, 5.0], dicke: [0.25, 0.36], aeste: [4, 6], breite: [0.6, 1.0], hoehe: [1.15, 1.6], steil: [0.7, 1.3], blatt: [0.65, 0.85], dichte: [0.8, 1.25], farben: ['#5e4a24', '#a58f3e', '#dccb86'], rinde: ['#4a443a', '#f1ecde'], ausreisser: ['#6c8a3c', '#c08a34', '#e8dca8'], form: [0.9, 1.5], streuung: [0.06, 0.2, 0.12] },
-  ahorn: { stamm: [2.4, 3.8], dicke: [0.38, 0.56], aeste: [4, 6], breite: [1.1, 1.6], hoehe: [0.8, 1.15], steil: [0.4, 0.85], blatt: [1.0, 1.3], dichte: [0.85, 1.25], farben: ['#503020', '#a05c26', '#d4a458'], rinde: ['#3a2a1d', '#6a5038'], ausreisser: ['#903c28', '#d0b050', '#607a30'], form: [0.85, 1.25], streuung: [0.05, 0.24, 0.14] },
-  leucht: { stamm: [2.6, 4.0], dicke: [0.36, 0.52], aeste: [4, 5], breite: [0.9, 1.4], hoehe: [0.8, 1.2], steil: [0.4, 0.9], blatt: [0.9, 1.15], dichte: [0.8, 1.2], farben: ['#2a2840', '#484468', '#8884ac'], rinde: ['#2c2418', '#5a4630'], ausreisser: ['#68507c', '#3c4670', '#a898c4'], form: [0.85, 1.3], streuung: [0.05, 0.2, 0.12] }
+  eiche: { stamm: [3.6, 5.0], dicke: [0.4, 0.6], aeste: [4, 6], breite: [1.0, 1.6], hoehe: [0.7, 1.05], steil: [0.35, 0.8], blatt: [0.9, 1.15], dichte: [0.85, 1.3], farben: ['#1c3020', '#3b5a2c', '#78904c'], rinde: ['#2c2118', '#5a4630'], ausreisser: ['#8c9040', '#2a4024', '#a88034'], form: [0.8, 1.3], streuung: [0.05, 0.22, 0.12] },
+  birke: { stamm: [4.8, 6.6], dicke: [0.25, 0.36], aeste: [4, 6], breite: [0.6, 1.0], hoehe: [1.15, 1.6], steil: [0.7, 1.3], blatt: [0.65, 0.85], dichte: [0.8, 1.25], farben: ['#5e4a24', '#a58f3e', '#dccb86'], rinde: ['#4a443a', '#f1ecde'], ausreisser: ['#6c8a3c', '#c08a34', '#e8dca8'], form: [0.9, 1.5], streuung: [0.06, 0.2, 0.12] },
+  ahorn: { stamm: [3.6, 5.0], dicke: [0.38, 0.56], aeste: [4, 6], breite: [1.1, 1.6], hoehe: [0.8, 1.15], steil: [0.4, 0.85], blatt: [1.0, 1.3], dichte: [0.85, 1.25], farben: ['#503020', '#a05c26', '#d4a458'], rinde: ['#3a2a1d', '#6a5038'], ausreisser: ['#903c28', '#d0b050', '#607a30'], form: [0.85, 1.25], streuung: [0.05, 0.24, 0.14] },
+  leucht: { stamm: [3.6, 5.0], dicke: [0.36, 0.52], aeste: [4, 5], breite: [0.9, 1.4], hoehe: [0.8, 1.2], steil: [0.4, 0.9], blatt: [0.9, 1.15], dichte: [0.8, 1.2], farben: ['#2a2840', '#484468', '#8884ac'], rinde: ['#2c2418', '#5a4630'], ausreisser: ['#68507c', '#3c4670', '#a898c4'], form: [0.85, 1.3], streuung: [0.05, 0.2, 0.12] }
 };
 /** Wachstumsregeln je Art (Ebenen: 0 Stamm, 1 Äste, 2 Zweige, 3 Zweigspitzen mit Blättern), nach dem Vorbild rekursiver Baumgeneratoren */
 const WACHSTUM: Record<Art, { laenge: [number, number, number]; kinder: [number, number, number]; winkel: [number, number, number]; kraft: [number, number, number]; knorrig: [number, number, number, number]; start: [number, number, number]; verjuengung: [number, number, number, number]; blaetter: number }> = {
-  eiche: { laenge: [3.2, 2.1, 1.3], kinder: [5, 4, 5], winkel: [62, 50, 45], kraft: [0.0, 0.0, -0.01], knorrig: [0.05, 0.14, 0.22, 0.26], start: [0.45, 0.25, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 16 },
-  birke: { laenge: [2.6, 1.7, 1.1], kinder: [6, 4, 4], winkel: [32, 38, 42], kraft: [0.05, 0.02, -0.04], knorrig: [0.04, 0.09, 0.16, 0.2], start: [0.4, 0.2, 0.1], verjuengung: [0.55, 0.65, 0.8, 0.9], blaetter: 13 },
-  ahorn: { laenge: [3.0, 2.0, 1.2], kinder: [5, 4, 5], winkel: [50, 48, 44], kraft: [0.02, 0.01, 0.0], knorrig: [0.05, 0.12, 0.2, 0.24], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
-  leucht: { laenge: [2.9, 1.9, 1.2], kinder: [5, 4, 4], winkel: [56, 46, 42], kraft: [0.01, 0.0, 0.0], knorrig: [0.06, 0.16, 0.24, 0.28], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 13 }
+  eiche: { laenge: [3.2, 2.1, 1.3], kinder: [5, 4, 5], winkel: [50, 46, 44], kraft: [0.0, 0.0, 0.0], knorrig: [0.05, 0.14, 0.22, 0.26], start: [0.72, 0.25, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 16 },
+  birke: { laenge: [2.6, 1.7, 1.1], kinder: [6, 4, 4], winkel: [28, 34, 40], kraft: [0.05, 0.02, 0.0], knorrig: [0.04, 0.09, 0.16, 0.2], start: [0.7, 0.2, 0.1], verjuengung: [0.55, 0.65, 0.8, 0.9], blaetter: 13 },
+  ahorn: { laenge: [3.0, 2.0, 1.2], kinder: [5, 4, 5], winkel: [42, 44, 42], kraft: [0.02, 0.01, 0.0], knorrig: [0.05, 0.12, 0.2, 0.24], start: [0.7, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
+  leucht: { laenge: [2.9, 1.9, 1.2], kinder: [5, 4, 4], winkel: [46, 44, 42], kraft: [0.01, 0.0, 0.0], knorrig: [0.06, 0.16, 0.24, 0.28], start: [0.7, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 13 }
 };
 /**
  * Laubbaum einer Art, prozedural je Variante, mit rekursiv wachsendem Gerüst: Stamm → Äste → Zweige → Zweigspitzen. Jede Ebene hat Länge, Dicke,
@@ -188,7 +188,7 @@ function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.Buffe
         wachse(cp, cd, ebene + 1, laenge[ebene + 1] * (0.8 + 0.4 * rnd()) * (1 - 0.3 * tt) * (ebene === 0 ? hoehe * 0.6 + 0.5 : 1), Math.min(radius[ebene + 1], pr * 0.62));
       }
     } else {
-      for (let l = 0; l < blattProZweig; l++) { const tt = 0.12 + 0.88 * rnd(), ix = Math.min(n - 1, Math.floor(tt * n)), al = tt * n - ix, c = new THREE.Vector3().lerpVectors(pts[ix].p, pts[ix + 1].p, al); punkte.push([c.x + (rnd() - 0.5) * 0.5, c.y + (rnd() - 0.5) * 0.5, c.z + (rnd() - 0.5) * 0.5]); }
+      for (let l = 0; l < blattProZweig; l++) { const tt = 0.12 + 0.88 * rnd(), ix = Math.min(n - 1, Math.floor(tt * n)), al = tt * n - ix, c = new THREE.Vector3().lerpVectors(pts[ix].p, pts[ix + 1].p, al); punkte.push([c.x + (rnd() - 0.5) * 0.5, Math.max(c.y + (rnd() - 0.5) * 0.5, th * 0.74 + rnd() * 0.4), c.z + (rnd() - 0.5) * 0.5]); } // freier Stamm: keine Blätter unterhalb der Kronenuntergrenze
     }
   };
   wachse(new THREE.Vector3(0, -0.3, 0), new THREE.Vector3(neigung * 0.05, 1, neigung * 0.02), 0, th + 0.3, radius[0]);
@@ -251,13 +251,13 @@ function bluetenbusch(v: number, fein = true): THREE.BufferGeometry {
 }
 /** Tanne: Stamm, dunkler Kegelkern und viele hängende Zweigfächer in Stockwerken (Karten mit Nadeltextur) */
 function tanne(v: number, fein = true): THREE.BufferGeometry {
-  const s = v * 5.1 + 2, RV = (i: number) => rz(i, v, 5, 79), stufen = fein ? 7 + Math.floor(RV(1) * 4) : 5, t: THREE.BufferGeometry[] = [ast(0, -0.3, 0, 0, 2.8, 0, 0.5, 0.26, ['#3a2a1d', '#5e4630'], fein ? 8 : 5)];
-  const D = new THREE.Color('#12281a'), M = new THREE.Color('#2c5a36'), H = new THREE.Color('#7da25c'), c = new THREE.Color(), abstand = (fein ? 1.15 : 1.75) * (0.85 + 0.35 * RV(2)), basis = 2.6 + 1.4 * RV(3), hoehe = 1.3 + (stufen - 1) * abstand + 2.2;
+  const s = v * 5.1 + 2, RV = (i: number) => rz(i, v, 5, 79), stufen = fein ? 7 + Math.floor(RV(1) * 4) : 5, t: THREE.BufferGeometry[] = [ast(0, -0.3, 0, 0, 4.0, 0, 0.5, 0.26, ['#3a2a1d', '#5e4630'], fein ? 8 : 5)];
+  const D = new THREE.Color('#12281a'), M = new THREE.Color('#2c5a36'), H = new THREE.Color('#7da25c'), c = new THREE.Color(), abstand = (fein ? 1.15 : 1.75) * (0.85 + 0.35 * RV(2)), basis = 2.6 + 1.4 * RV(3), hoehe = 2.5 + (stufen - 1) * abstand + 2.2;
   // Kern
-  { const g = new THREE.ConeGeometry(2.0, hoehe - 1.6, 9, 3, true); g.translate(0, 1.4 + (hoehe - 1.6) / 2, 0); t.push(fertig(g, (_x, py) => c.copy(D).multiplyScalar(0.9 + 0.5 * Math.min(1, py / hoehe)))); }
+  { const g = new THREE.ConeGeometry(2.0, hoehe - 2.8, 9, 3, true); g.translate(0, 2.6 + (hoehe - 2.8) / 2, 0); t.push(fertig(g, (_x, py) => c.copy(D).multiplyScalar(0.9 + 0.5 * Math.min(1, py / hoehe)))); }
   const pos: number[] = [], nor: number[] = [], col: number[] = [], uv: number[] = [], idx: number[] = [];
   for (let i = 0; i < stufen; i++) {
-    const f = i / (stufen - 1), r = basis - basis * 0.8 * f, y = 1.4 + i * abstand + 0.5, zahl = Math.round((fein ? 11 : 7) - 5 * f);
+    const f = i / (stufen - 1), r = basis - basis * 0.8 * f, y = 2.6 + i * abstand + 0.5, zahl = Math.round((fein ? 11 : 7) - 5 * f);
     for (let k = 0; k < zahl * (fein ? 2 : 1); k++) {
       const a = (k + (i % 2) * 0.5) * (6.2832 / zahl) + rz(k, i, s, 51) * 0.5, drop = 0.28 + 0.3 * rz(k, i, s, 52) + (fein && k >= zahl ? 0.25 : 0), len = r * 1.3 * (fein && k >= zahl ? 0.72 : 1) * (0.9 + 0.2 * rz(k, i, s, 53)), wd = (2.0 + 1.6 * (1 - f)) * (0.9 + 0.2 * rz(k, i, s, 54));
       const dx = Math.cos(a) * Math.cos(drop), dy = -Math.sin(drop), dz = Math.sin(a) * Math.cos(drop), wx = -Math.sin(a), wz = Math.cos(a), yy = y + (fein && k >= zahl ? -0.35 : 0);
