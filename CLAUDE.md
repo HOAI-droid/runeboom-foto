@@ -58,6 +58,8 @@ rechts Nacht mit Kristallen und Wellen). Umsetzung in diesem Repo (Schalter `GLA
   `felsTex`, `grasTex`, `laubTex`, `nadelTex`. Bäume, Büsche, Felsen, Gras, Blumen, Schilf, Farne entstehen aus Zufallsparametern je Variante (`NV` = Zahl der Varianten;
   Laub: Stammhöhe/-neigung, 1–3 Kronenlappen, Farbverschiebung), Instanzen zusätzlich mit eigener Breite/Höhe, Schieflage und Farbton. Ufer: Schilf und Kiesel (chunk.ts),
   Wasser ohne Pixelraster (glatte Wellen, beide Shader).
+- **Wesen** (`wesen.ts`): glatte Körper aus Blobs/Röhren; Beine und Arme über `kette()` mit Gelenken (Hüfte → Knie, Schulter → Ellbogen, Zehen/Finger mit Krallen), Flügel mit Flügelhand; `Glied.eltern` verkettet Gelenke, `GlattSchar.winkel()` rechnet sie. **Neue Wesen mit `kette()` bauen.**
+- **Burg** (`glatt.ts`): eingelassene Fenster mit Laibung (`fenster()`, `rahmen()`), Torhaus mit Rundbogen (`torhaus()`), Gesims, Konsolen, Strebepfeiler, Schießscharten. Übrige Gebäude noch Voxel.
 - **Felsen** (`natur.ts`, `felsbrocken()`): an zufälligen Ebenen abgeschnittene Kugeln, Schichtung, Moos auf Oberseiten.
 - **Dunst und Lichtstrahlen** (`grafik.ts`): `uDunst` im Nebelshader (beide Fassungen) lässt Schwaden auch über Erkundetem ziehen (Tag stärker,
   `werte.dunst`, in niedriger Grafik aus); `Lichtstrahlen` = wenige lange Additiv-Bahnen aus Standardmaterialien (laufen bei WebGL und WebGPU), an der Welt verankert.

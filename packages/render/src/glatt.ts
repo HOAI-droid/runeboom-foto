@@ -82,38 +82,104 @@ function zinnen(g: THREE.Group, bx: number, bz: number, y: number, rand = 0.5): 
   for (let i = 0; i < n; i++) { const x = -bx / 2 + (i + 0.5) * bx / n; for (const s of [-1, 1]) teil(g, quader(0.7, 0.8, 0.6), matStein(), x, y + 0.4, s * (bz / 2 - rand / 2)); }
   for (let i = 1; i < m - 1; i++) { const z = -bz / 2 + (i + 0.5) * bz / m; for (const s of [-1, 1]) teil(g, quader(0.6, 0.8, 0.7), matStein(), s * (bx / 2 - rand / 2), y + 0.4, z); }
 }
-function rundturm(g: THREE.Group, x: number, z: number, h: number, r: number, dach: string, fenster = true): void {
-  teil(g, zyl(r, h), matStein(), x, h / 2, z);
-  teil(g, new THREE.CylinderGeometry(r * 1.12, r * 1.12, 0.4, 28), matStein(), x, h + 0.2, z);
-  teil(g, kegel(r * 1.3, r * 3.4), matDach(dach), x, h + 0.4 + r * 1.7, z);
-  teil(g, new THREE.SphereGeometry(0.25, 12, 8), matGold(), x, h + 0.4 + r * 3.5, z, false);
-  if (fenster) for (const a of [0.7, 2.4, 4.0, 5.5]) teil(g, new THREE.BoxGeometry(0.35, 0.8, 0.2), matFenster(), x + Math.cos(a) * (r + 0.02), h * 0.62, z + Math.sin(a) * (r + 0.02), false).rotation.y = -a + Math.PI / 2;
+const matEisen = () => stoff('eisen', () => FABRIK.licht({ color: '#3a3a40', roughness: 0.6, metalness: 0.5 }, 1.2));
+const matSchatten = () => stoff('schatten', () => new THREE.MeshBasicMaterial({ color: '#1a1410' }));
+const hz = (a: number, b: number): number => { const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return v - Math.floor(v); };
+/** Rundbogenform (Fuß bei y = 0, Scheitel bei y = h) */
+function bogen(w: number, h: number): THREE.Shape { const r = w / 2, s = new THREE.Shape(); s.moveTo(-r, 0); s.lineTo(r, 0); s.lineTo(r, h - r); s.absarc(0, h - r, r, 0, Math.PI, false); s.lineTo(-r, 0); return s; }
+/** Steinrahmen mit Bogenöffnung: Rechteck unten, Bogen oben, Öffnung ausgespart, mit Tiefe (die Laibung sieht man) */
+function rahmen(w: number, h: number, rand: number, tiefe: number): THREE.BufferGeometry {
+  const o = new THREE.Shape(), r = w / 2 + rand; o.moveTo(-r, -rand * 0.6); o.lineTo(r, -rand * 0.6); o.lineTo(r, h - w / 2); o.absarc(0, h - w / 2, r, 0, Math.PI, false); o.lineTo(-r, -rand * 0.6); o.holes.push(bogen(w, h));
+  return weltUV(new THREE.ExtrudeGeometry(o, { depth: tiefe, bevelEnabled: false, curveSegments: 10 }), 2);
+}
+/** Eingelassenes Fenster: Steinrahmen mit tiefer Laibung, Glas dahinter, Sprossenkreuz, Sohlbank, auf Wunsch Läden; z zeigt nach außen (ry dreht) */
+function fenster(g: THREE.Group, x: number, y: number, z: number, ry: number, w = 0.55, h = 1.3, laden = false): void {
+  const f = new THREE.Group(); f.position.set(x, y, z); f.rotation.y = ry; g.add(f);
+  teil(f, rahmen(w, h, 0.17, 0.42), matStein(), 0, 0, -0.1);
+  teil(f, new THREE.ShapeGeometry(bogen(w, h), 10), matFenster(), 0, 0, 0.0, false);
+  teil(f, new THREE.BoxGeometry(0.05, h - w / 2, 0.05), matHolz(), 0, (h - w / 2) / 2, 0.1, false); teil(f, new THREE.BoxGeometry(w, 0.05, 0.05), matHolz(), 0, h * 0.45, 0.1, false);
+  teil(f, new THREE.BoxGeometry(w + 0.55, 0.12, 0.5), matStein(), 0, -0.14, 0.13);
+  if (laden) for (const s of [-1, 1]) { const l = teil(f, new THREE.BoxGeometry(w * 0.5, h * 0.95, 0.05), matHolz(), s * (w / 2 + 0.38), h * 0.48, 0.42); l.rotation.y = -s * 0.7; }
+}
+/** Schießscharte: schmaler Schlitz mit Laibung */
+function scharte(g: THREE.Group, x: number, y: number, z: number, ry: number): void {
+  const f = new THREE.Group(); f.position.set(x, y, z); f.rotation.y = ry; g.add(f);
+  teil(f, rahmen(0.16, 1.0, 0.13, 0.4), matStein(), 0, 0, -0.1); teil(f, new THREE.PlaneGeometry(0.16, 0.9), matSchatten(), 0, 0.5, 0.02, false);
+}
+/** Gurtgesims und Konsolenkranz (Zinnenkranz kragt über die Wand vor, darunter Konsolsteine) */
+function gesims(g: THREE.Group, bx: number, bz: number, y: number, vor = 0.18, hoch = 0.28): void {
+  teil(g, quader(bx + vor * 2, hoch, bz + vor * 2), matStein(), 0, y, 0);
+}
+function konsolen(g: THREE.Group, bx: number, bz: number, y: number): void {
+  const n = Math.round(bx / 0.9);
+  for (let i = 0; i < n; i++) { const x = -bx / 2 + (i + 0.5) * bx / n; for (const sg of [-1, 1]) { teil(g, quader(0.36, 0.5, 0.4), matStein(), x, y, sg * (bz / 2 + 0.12)); teil(g, quader(0.4, 0.5, 0.36), matStein(), sg * (bx / 2 + 0.12), y, x); } }
+}
+/** Pfeiler (Strebe) mit Anlauf */
+function strebe(g: THREE.Group, x: number, z: number, h: number, ry: number): void {
+  const p = new THREE.Group(); p.position.set(x, 0, z); p.rotation.y = ry; g.add(p);
+  teil(p, quader(0.9, h, 0.7), matStein(), 0, h / 2, 0.25); teil(p, quader(1.1, 0.5, 0.9), matStein(), 0, 0.25, 0.3); teil(p, quader(0.9, 0.35, 0.8), matStein(), 0, h * 0.62, 0.3); teil(p, quader(1.05, 0.3, 0.9), matStein(), 0, h + 0.05, 0.3);
+}
+function rundturm(g: THREE.Group, x: number, z: number, h: number, r: number, dach: string, fenster2 = true): void {
+  const t = new THREE.Group(); t.position.set(x, 0, z); g.add(t);
+  teil(t, new THREE.CylinderGeometry(r * 1.14, r * 1.2, 0.8, 28), matStein(), 0, 0.4, 0); teil(t, zyl(r, h), matStein(), 0, h / 2, 0);
+  for (const f of [0.34, 0.68]) teil(t, new THREE.CylinderGeometry(r * 1.06, r * 1.06, 0.22, 28), matStein(), 0, h * f, 0);
+  for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; teil(t, quader(0.34, 0.5, 0.36), matStein(), Math.cos(a) * (r * 1.1), h - 0.1, Math.sin(a) * (r * 1.1)).rotation.y = -a; }
+  teil(t, new THREE.CylinderGeometry(r * 1.2, r * 1.2, 0.4, 28), matStein(), 0, h + 0.2, 0);
+  teil(t, kegel(r * 1.38, r * 3.4), matDach(dach), 0, h + 0.4 + r * 1.7, 0); teil(t, new THREE.CylinderGeometry(r * 1.38, r * 1.38, 0.1, 28), matDach(dach), 0, h + 0.42, 0);
+  teil(t, new THREE.SphereGeometry(0.25, 12, 8), matGold(), 0, h + 0.4 + r * 3.5, 0, false);
+  if (fenster2) { for (const [i, a] of [0.7, 2.4, 4.0, 5.5].entries()) { const ry = Math.atan2(Math.cos(a), Math.sin(a)); fenster(t, Math.cos(a) * (r - 0.05), h * 0.7, Math.sin(a) * (r - 0.05), ry, 0.42, 1.0, i % 2 === 0); }
+    for (const a of [1.5, 3.2, 4.8, 0.05]) scharte(t, Math.cos(a) * (r - 0.05), h * 0.38, Math.sin(a) * (r - 0.05), Math.atan2(Math.cos(a), Math.sin(a))); }
+}
+/** Torhaus: Steinblock mit tiefem Rundbogen, zurückgesetzte Torflügel mit Eisenbändern, Zinnen, Laternen */
+function torhaus(g: THREE.Group, z0: number, volk = ''): void {
+  const B = 3.8, H = 5.4, T = 1.8, ow = 1.9, oh = 3.0, t = new THREE.Group(); t.position.set(0, 0, z0); g.add(t);
+  const o = new THREE.Shape(); o.moveTo(-B / 2, 0); o.lineTo(B / 2, 0); o.lineTo(B / 2, H); o.lineTo(-B / 2, H); o.lineTo(-B / 2, 0); o.holes.push(bogen(ow, oh));
+  teil(t, weltUV(new THREE.ExtrudeGeometry(o, { depth: T, bevelEnabled: false, curveSegments: 12 }), 4), matStein(), 0, 0, -0.3);
+  teil(t, rahmen(ow + 0.2, oh + 0.1, 0.22, 0.3), matStein(), 0, 0, T - 0.45); // Bogeneinfassung vorn
+  teil(t, quader(B + 0.5, 0.3, T + 0.5), matStein(), 0, H, T / 2 - 0.3); const zg = new THREE.Group(); zg.position.set(0, H + 0.15, T / 2 - 0.3); g.add(zg); zg.position.add(new THREE.Vector3(0, 0, z0)); zinnen(zg, B + 0.5, T + 0.5, 0.0, 0.4);
+  teil(t, quader(B + 0.4, 0.4, 0.5), matStein(), 0, 0.2, T - 0.2);
+  // Torflügel
+  const flg = bogen(ow, oh); flg.holes = [];
+  teil(t, weltUV(new THREE.ExtrudeGeometry(flg, { depth: 0.24, bevelEnabled: false, curveSegments: 12 }), 2), matHolz(), 0, 0, 0.35);
+  teil(t, quader(0.07, oh - ow / 2, 0.1), matSchatten(), 0, (oh - ow / 2) / 2, 0.62, false);
+  for (const yy of [0.5, 1.5, 2.45]) { teil(t, quader(ow - 0.04, 0.13, 0.08), matEisen(), 0, yy, 0.62); for (const sg of [-1, 1]) teil(t, new THREE.SphereGeometry(0.075, 6, 5), matEisen(), sg * (ow / 2 - 0.2), yy + 0.07, 0.66, false); }
+  for (const sg of [-1, 1]) { teil(t, new THREE.TorusGeometry(0.12, 0.025, 6, 12), matEisen(), sg * 0.22, 1.2, 0.64, false); teil(t, quader(0.18, 0.14, 0.04), matEisen(), sg * 0.5, 0.9, 0.62, false); }
+  for (const sg of [-1, 1]) { teil(t, quader(0.05, 0.6, 0.05), matEisen(), sg * 2.35, 2.4, T - 0.1); teil(t, new THREE.BoxGeometry(0.2, 0.28, 0.2), matFenster(), sg * 2.35, 3.1, T - 0.1, false); teil(t, quader(0.3, 0.06, 0.3), matEisen(), sg * 2.35, 3.38, T - 0.1); }
+  for (const sg of [-1, 1]) { const f = teil(t, new THREE.PlaneGeometry(0.9, 2.4), matFahne(), sg * 1.25, H - 1.6, T - 0.27, false); f.position.y = H - 1.6; teil(t, quader(1.0, 0.08, 0.08), matEisen(), sg * 1.25, H - 0.4, T - 0.27, false); }
+  void volk;
 }
 
 /** Glatte Burg, Maße nach dem Voxelmodell (Halbvoxel = 0,5 Block); stufe 1–6 wie `burg()` in modelle.ts */
 export function glatteBurg(stufe: number): THREE.Group {
   const g = new THREE.Group(), dach = stufe >= 5 ? '#b87333' : '#3f5675';
-  teil(g, quader(11.5, 0.6, 11.5), matStein(), 0, 0.3, 0); // Sockel
-  teil(g, quader(9.4, 7.4, 9.4), matStein(), 0, 0.6 + 3.7, 0); // Hauptbau
-  zinnen(g, 9.4, 9.4, 8.0);
-  // Fenster (leuchten nachts), Tor
-  for (const x of [-3, -1, 1, 3]) for (const y of [3.2, 6.2]) { teil(g, new THREE.BoxGeometry(0.6, 1.1, 0.15), matFenster(), x, y, 4.72, false); teil(g, new THREE.BoxGeometry(0.15, 1.1, 0.6), matFenster(), 4.72, y, x, false); teil(g, new THREE.BoxGeometry(0.15, 1.1, 0.6), matFenster(), -4.72, y, x, false); }
-  teil(g, quader(2.2, 3.4, 0.5), matHolz(), 0, 2.3, 4.75); teil(g, new THREE.CylinderGeometry(1.1, 1.1, 0.5, 16, 1, false, 0, Math.PI), matHolz(), 0, 4.0, 4.75).rotation.set(Math.PI / 2, 0, 0);
-  for (const s of [-1, 1]) { const f = teil(g, new THREE.PlaneGeometry(0.9, 3.2), matFahne(), s * 3, 6.6, 4.8, false); f.rotation.y = 0; }
+  teil(g, quader(12.0, 0.5, 12.0), matStein(), 0, 0.25, 0); teil(g, quader(10.6, 0.6, 10.6), matStein(), 0, 0.8, 0); // Stufen
+  teil(g, quader(10.0, 1.4, 10.0), matStein(), 0, 1.1, 0); // Anlauf des Mauerfußes
+  teil(g, quader(9.4, 6.4, 9.4), matStein(), 0, 1.1 + 4.1, 0); // Hauptbau
+  for (const y of [4.4]) gesims(g, 9.4, 9.4, y, 0.16, 0.3);
+  gesims(g, 9.4, 9.4, 7.45, 0.34, 0.28); konsolen(g, 8.6, 8.6, 7.1); gesims(g, 9.4, 9.4, 7.72, 0.34, 0.14);
+  const zk = new THREE.Group(); zk.position.y = 0.2; g.add(zk); zinnen(zk, 9.8, 9.8, 7.8, 0.45);
+  // Strebepfeiler an den Wänden
+  for (const x of [-1.6, 1.6]) { strebe(g, x * 1.0, 4.7, 7.0, 0); strebe(g, x, -4.7, 7.0, Math.PI); strebe(g, 4.7, x, 7.0, Math.PI / 2); strebe(g, -4.7, x, 7.0, -Math.PI / 2); }
+  // Fenster: eingelassen, mit Laibung und Sohlbank
+  for (const [i, x] of [-2.6, 2.6].entries()) for (const y of [3.0, 5.8]) { fenster(g, x, y, 4.7, 0, 0.5, 1.2, (i + (y > 4 ? 1 : 0)) % 2 === 0); fenster(g, x, y, -4.7, Math.PI, 0.5, 1.2, i === 0); }
+  for (const z of [-2.4, 0.0, 2.4]) for (const y of [3.0, 5.8]) { fenster(g, 4.7, y, z, Math.PI / 2, 0.5, 1.2, hz(z, y) > 0.5); fenster(g, -4.7, y, z, -Math.PI / 2, 0.5, 1.2, hz(y, z) > 0.5); }
+  scharte(g, 0, 6.2, 4.72, 0); scharte(g, 0, 3.0, -4.72, Math.PI);
+  torhaus(g, 4.7);
   // Ecktürme
   for (const [x, z] of [[-4.5, -4.5], [4.5, -4.5], [-4.5, 4.5], [4.5, 4.5]]) rundturm(g, x, z, 10.2, 1.5, dach);
   // Bergfried
-  teil(g, quader(7, 4.4, 7), matStein(), 0, 8.0 + 2.2 - 0.4, 0);
-  zinnen(g, 7, 7, 10.2, 0.4);
-  teil(g, pyramide(8, 4.2), matDach(dach), 0, 10.4 + 2.1, 0);
-  for (const x of [-2, 0, 2]) { teil(g, new THREE.BoxGeometry(0.6, 1.1, 0.15), matFenster(), x, 8.9, 3.52, false); }
+  teil(g, quader(7, 3.8, 7), matStein(), 0, 7.7 + 1.9, 0); gesims(g, 7, 7, 8.2, 0.14, 0.26);
+  for (const [x, z, ry] of [[0, 3.5, 0], [0, -3.5, Math.PI], [3.5, 0, Math.PI / 2], [-3.5, 0, -Math.PI / 2]] as [number, number, number][]) for (const o of [-1.6, 0, 1.6]) fenster(g, x === 0 ? o : x, 8.6, z === 0 ? o : z, ry, 0.5, 1.4, o === 0);
+  gesims(g, 7, 7, 11.4, 0.5, 0.3); konsolen(g, 7.4, 7.4, 11.2);
+  teil(g, pyramide(8.6, 4.4), matDach(dach), 0, 11.5 + 2.2, 0);
+  for (const [x, z, ry] of [[0, 1.9, 0], [0, -1.9, Math.PI], [1.9, 0, Math.PI / 2], [-1.9, 0, -Math.PI / 2]] as [number, number, number][]) { const lk = new THREE.Group(); lk.position.set(x, 12.9, z); lk.rotation.y = ry; g.add(lk); teil(lk, new THREE.BoxGeometry(0.8, 0.8, 0.8), matStein(), 0, 0, 0.5); teil(lk, pyramide(1.2, 0.8), matDach(dach), 0, 0.8, 0.5); teil(lk, new THREE.BoxGeometry(0.35, 0.5, 0.06), matFenster(), 0, 0, 0.92, false); }
   if (stufe < 2) { teil(g, new THREE.CylinderGeometry(0.08, 0.08, 4, 8), matHolz(), 0, 16.5, 0, false); teil(g, new THREE.PlaneGeometry(1.8, 1), matFahne(), 0.9, 18, 0, false); }
   else { teil(g, new THREE.CylinderGeometry(0.12, 0.12, 4, 8), matGold(), 0, 16.5, 0, false); const k = teil(g, new THREE.OctahedronGeometry(1, 0), matKristall(), 0, 19.4, 0, false); k.scale.set(0.9, 1.7, 0.9); }
   if (stufe >= 3) for (const [x, z] of [[-4.5, 0], [4.5, 0]]) rundturm(g, x, z, 7.5, 1.1, dach);
   if (stufe >= 4) { // Ringmauer (±6,2 Blöcke) mit Zinnen, Tor in der Vorderseite und Eckwehrtürmen
-    const R = 6.2, H = 2.6, seg: number[][] = [[2 * R, 1, 0, -R], [1, 2 * R, -R, 0], [1, 2 * R, R, 0], [R - 1.2, 1, -(R + 1.2) / 2, R], [R - 1.2, 1, (R + 1.2) / 2, R]];
-    for (const [bx, bz, x, z] of seg) { teil(g, quader(bx, H, bz), matStein(), x, H / 2, z); const z2 = new THREE.Group(); zinnen(z2, bx, bz, H, 0.3); z2.position.set(x, 0, z); g.add(z2); }
-    for (const [x, z] of [[-R, -R], [R, -R], [-R, R], [R, R]]) rundturm(g, x, z, 4.6, 0.9, dach, false);
+    const R = 6.8, H = 2.8, seg: number[][] = [[2 * R, 0.9, 0, -R], [0.9, 2 * R, -R, 0], [0.9, 2 * R, R, 0], [R - 1.4, 0.9, -(R + 1.4) / 2, R], [R - 1.4, 0.9, (R + 1.4) / 2, R]];
+    for (const [bx, bz, x, z] of seg) { teil(g, quader(bx, H, bz), matStein(), x, H / 2, z); const z2 = new THREE.Group(); zinnen(z2, bx, bz, H, 0.35); z2.position.set(x, 0, z); g.add(z2); }
+    for (const [x, z] of [[-R, -R], [R, -R], [-R, R], [R, R]]) rundturm(g, x, z, 4.8, 1.0, dach, false);
   }
   if (stufe >= 6) for (const [x, z] of [[-4.5, -4.5], [4.5, 4.5]]) { const k = teil(g, new THREE.OctahedronGeometry(0.7, 0), matKristall(), x, 16.2, z, false); k.scale.y = 1.6; }
   return g;
