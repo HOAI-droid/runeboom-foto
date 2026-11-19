@@ -140,17 +140,17 @@ interface Streuung { h: number; s: number; l: number; form: [number, number]; au
 type Art = 'eiche' | 'birke' | 'ahorn' | 'leucht';
 interface Preset { stamm: [number, number]; dicke: [number, number]; aeste: [number, number]; breite: [number, number]; hoehe: [number, number]; steil: [number, number]; blatt: [number, number]; dichte: [number, number]; farben: [string, string, string]; rinde: [string, string]; ausreisser: string[]; form: [number, number]; streuung: [number, number, number] }
 const PRESETS: Record<Art, Preset> = {
-  eiche: { stamm: [4.2, 7.0], dicke: [0.7, 1.1], aeste: [4, 6], breite: [1.0, 1.6], hoehe: [0.7, 1.05], steil: [0.35, 0.8], blatt: [0.9, 1.15], dichte: [0.85, 1.3], farben: ['#1a3418', '#3a6128', '#7d9f45'], rinde: ['#2c2118', '#5a4630'], ausreisser: ['#a6a838', '#2a4a22', '#c28a2a'], form: [0.8, 1.3], streuung: [0.05, 0.22, 0.12] },
-  birke: { stamm: [8.0, 12.5], dicke: [0.4, 0.6], aeste: [4, 6], breite: [0.6, 1.0], hoehe: [1.15, 1.6], steil: [0.7, 1.3], blatt: [0.65, 0.85], dichte: [0.8, 1.25], farben: ['#6e4a10', '#d3a22c', '#ffe27c'], rinde: ['#4a443a', '#f1ecde'], ausreisser: ['#7ea63a', '#e39a2a', '#fff0a0'], form: [0.9, 1.5], streuung: [0.06, 0.2, 0.12] },
-  ahorn: { stamm: [4.4, 7.0], dicke: [0.65, 0.95], aeste: [4, 6], breite: [1.1, 1.6], hoehe: [0.8, 1.15], steil: [0.4, 0.85], blatt: [1.0, 1.3], dichte: [0.85, 1.25], farben: ['#5c1e0e', '#c85c1c', '#ffae38'], rinde: ['#3a2a1d', '#6a5038'], ausreisser: ['#b02a18', '#e8c040', '#6a8a2a'], form: [0.85, 1.25], streuung: [0.05, 0.24, 0.14] },
-  leucht: { stamm: [4.5, 7.5], dicke: [0.6, 0.9], aeste: [4, 5], breite: [0.9, 1.4], hoehe: [0.8, 1.2], steil: [0.4, 0.9], blatt: [0.9, 1.15], dichte: [0.8, 1.2], farben: ['#262048', '#4f4580', '#9a8fd2'], rinde: ['#2c2418', '#5a4630'], ausreisser: ['#7a4a9a', '#3a4a8a', '#b8a0e0'], form: [0.85, 1.3], streuung: [0.05, 0.2, 0.12] }
+  eiche: { stamm: [2.2, 3.6], dicke: [0.4, 0.6], aeste: [4, 6], breite: [1.0, 1.6], hoehe: [0.7, 1.05], steil: [0.35, 0.8], blatt: [0.9, 1.15], dichte: [0.85, 1.3], farben: ['#1a3418', '#3a6128', '#7d9f45'], rinde: ['#2c2118', '#5a4630'], ausreisser: ['#a6a838', '#2a4a22', '#c28a2a'], form: [0.8, 1.3], streuung: [0.05, 0.22, 0.12] },
+  birke: { stamm: [3.4, 5.0], dicke: [0.25, 0.36], aeste: [4, 6], breite: [0.6, 1.0], hoehe: [1.15, 1.6], steil: [0.7, 1.3], blatt: [0.65, 0.85], dichte: [0.8, 1.25], farben: ['#6e4a10', '#d3a22c', '#ffe27c'], rinde: ['#4a443a', '#f1ecde'], ausreisser: ['#7ea63a', '#e39a2a', '#fff0a0'], form: [0.9, 1.5], streuung: [0.06, 0.2, 0.12] },
+  ahorn: { stamm: [2.4, 3.8], dicke: [0.38, 0.56], aeste: [4, 6], breite: [1.1, 1.6], hoehe: [0.8, 1.15], steil: [0.4, 0.85], blatt: [1.0, 1.3], dichte: [0.85, 1.25], farben: ['#5c1e0e', '#c85c1c', '#ffae38'], rinde: ['#3a2a1d', '#6a5038'], ausreisser: ['#b02a18', '#e8c040', '#6a8a2a'], form: [0.85, 1.25], streuung: [0.05, 0.24, 0.14] },
+  leucht: { stamm: [2.6, 4.0], dicke: [0.36, 0.52], aeste: [4, 5], breite: [0.9, 1.4], hoehe: [0.8, 1.2], steil: [0.4, 0.9], blatt: [0.9, 1.15], dichte: [0.8, 1.2], farben: ['#262048', '#4f4580', '#9a8fd2'], rinde: ['#2c2418', '#5a4630'], ausreisser: ['#7a4a9a', '#3a4a8a', '#b8a0e0'], form: [0.85, 1.3], streuung: [0.05, 0.2, 0.12] }
 };
 /** Wachstumsregeln je Art (Ebenen: 0 Stamm, 1 Äste, 2 Zweige, 3 Zweigspitzen mit Blättern), nach dem Vorbild rekursiver Baumgeneratoren */
 const WACHSTUM: Record<Art, { laenge: [number, number, number]; kinder: [number, number, number]; winkel: [number, number, number]; kraft: [number, number, number]; knorrig: [number, number, number, number]; start: [number, number, number]; verjuengung: [number, number, number, number]; blaetter: number }> = {
-  eiche: { laenge: [6.6, 4.4, 2.6], kinder: [5, 4, 5], winkel: [62, 50, 45], kraft: [0.0, 0.0, -0.01], knorrig: [0.05, 0.14, 0.22, 0.26], start: [0.45, 0.25, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 16 },
-  birke: { laenge: [5.0, 3.3, 2.2], kinder: [6, 4, 4], winkel: [32, 38, 42], kraft: [0.05, 0.02, -0.04], knorrig: [0.04, 0.09, 0.16, 0.2], start: [0.4, 0.2, 0.1], verjuengung: [0.55, 0.65, 0.8, 0.9], blaetter: 13 },
-  ahorn: { laenge: [5.9, 3.9, 2.4], kinder: [5, 4, 5], winkel: [50, 48, 44], kraft: [0.02, 0.01, 0.0], knorrig: [0.05, 0.12, 0.2, 0.24], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
-  leucht: { laenge: [5.7, 3.7, 2.3], kinder: [5, 4, 4], winkel: [56, 46, 42], kraft: [0.01, 0.0, 0.0], knorrig: [0.06, 0.16, 0.24, 0.28], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 13 }
+  eiche: { laenge: [3.2, 2.1, 1.3], kinder: [5, 4, 5], winkel: [62, 50, 45], kraft: [0.0, 0.0, -0.01], knorrig: [0.05, 0.14, 0.22, 0.26], start: [0.45, 0.25, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 16 },
+  birke: { laenge: [2.6, 1.7, 1.1], kinder: [6, 4, 4], winkel: [32, 38, 42], kraft: [0.05, 0.02, -0.04], knorrig: [0.04, 0.09, 0.16, 0.2], start: [0.4, 0.2, 0.1], verjuengung: [0.55, 0.65, 0.8, 0.9], blaetter: 13 },
+  ahorn: { laenge: [3.0, 2.0, 1.2], kinder: [5, 4, 5], winkel: [50, 48, 44], kraft: [0.02, 0.01, 0.0], knorrig: [0.05, 0.12, 0.2, 0.24], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 14 },
+  leucht: { laenge: [2.9, 1.9, 1.2], kinder: [5, 4, 4], winkel: [56, 46, 42], kraft: [0.01, 0.0, 0.0], knorrig: [0.06, 0.16, 0.24, 0.28], start: [0.4, 0.22, 0.1], verjuengung: [0.6, 0.7, 0.8, 0.9], blaetter: 13 }
 };
 /**
  * Laubbaum einer Art, prozedural je Variante, mit rekursiv wachsendem Gerüst: Stamm → Äste → Zweige → Zweigspitzen. Jede Ebene hat Länge, Dicke,
@@ -161,9 +161,9 @@ function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.Buffe
   const P = PRESETS[art], Wz = WACHSTUM[art], R = (i: number) => rz(i, v, 3, 77), W = (r: [number, number], i: number) => r[0] + (r[1] - r[0]) * R(i), s = v * 7.3 + 1 + art.length * 3, t: THREE.BufferGeometry[] = [];
   let st = (Math.imul(v + 1, 9301) + art.length * 49297 + 17) >>> 0; const rnd = () => { st = (Math.imul(st, 1664525) + 1013904223) >>> 0; return st / 4294967296; };
   const [d, m, h] = P.farben.map((c) => '#' + new THREE.Color(c).offsetHSL((R(7) - 0.5) * 0.07, (R(13) - 0.5) * 0.15, (R(8) - 0.5) * 0.1).getHexString()) as [string, string, string];
-  const th = W(P.stamm, 1), neigung = (R(5) - 0.5) * (art === 'birke' ? 2.4 : 1.6), hoehe = W(P.hoehe, 3), breite = W(P.breite, 2), dicke = W(P.dicke, 6) * 1.3, dichte = W(P.dichte, 14), blatt = W(P.blatt, 15), steilV = 0.75 + 0.5 * R(4), knV = 0.7 + 0.7 * R(9);
+  const th = W(P.stamm, 1), neigung = (R(5) - 0.5) * (art === 'birke' ? 2.4 : 1.6), hoehe = W(P.hoehe, 3), breite = W(P.breite, 2), dicke = W(P.dicke, 6), dichte = W(P.dichte, 14), blatt = W(P.blatt, 15), steilV = 0.75 + 0.5 * R(4), knV = 0.7 + 0.7 * R(9);
   const laenge = [th, Wz.laenge[0] * breite * (0.85 + 0.3 * R(10)), Wz.laenge[1] * breite * (0.85 + 0.3 * R(11)), Wz.laenge[2] * breite], radius = [dicke, dicke * 0.42, dicke * 0.2, dicke * 0.09], sek = fein ? [6, 4, 3, 2] : [4, 3, 2, 2];
-  const blattProZweig = Math.max(3, Math.round(Wz.blaetter * dichte * (fein ? 1 : 0.28))), punkte: number[][] = [], hoch = new THREE.Vector3(0, 1, 0), ref = new THREE.Vector3(1, 0, 0), a1 = new THREE.Vector3(), a2 = new THREE.Vector3(), q = new THREE.Quaternion();
+  const blattProZweig = Math.max(3, Math.round(Wz.blaetter * dichte * 0.55 * (fein ? 1 : 0.3))), punkte: number[][] = [], hoch = new THREE.Vector3(0, 1, 0), ref = new THREE.Vector3(1, 0, 0), a1 = new THREE.Vector3(), a2 = new THREE.Vector3(), q = new THREE.Quaternion();
   const drehe = (vec: THREE.Vector3, achse: THREE.Vector3, w: number) => vec.applyQuaternion(q.setFromAxisAngle(achse, w));
   const wachse = (start: THREE.Vector3, richtung: THREE.Vector3, ebene: number, len: number, rad: number): void => {
     const pts: { p: THREE.Vector3; d: THREE.Vector3; r: number }[] = [], n = sek[ebene], sl = len / n, dir = richtung.clone().normalize(), pos = start.clone();
@@ -195,7 +195,7 @@ function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.Buffe
   mx /= punkte.length; my /= punkte.length; mz /= punkte.length; for (const [x, , z] of punkte) hx = Math.max(hx, Math.hypot(x - mx, z - mz));
   const farbe = kronenFarbe(my, Math.max(1.5, (ymax - ymin) / 2), Math.max(1.5, hx), s, d, m, h);
   const streu: Streuung = { h: P.streuung[0], s: P.streuung[1], l: P.streuung[2], form: P.form, aus: P.ausreisser.map((c) => new THREE.Color(c)), ausWahr: 0.14 + 0.1 * R(16) };
-  t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 1.45 : 2.4) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
+  t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 0.95 : 1.6) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
   { const kern = new THREE.Color(m).multiplyScalar(0.45); t.push(buschel(hx * 0.45, (ymax - ymin) * 0.22, hx * 0.45, mx, my, mz, s, () => kern, 1, 0.3)); }
   if (beeren) for (let i = 0; i < 8; i++) { const [x, y, z] = punkte[Math.floor(rz(i, 3, v, 5) * punkte.length)], aa = rz(i, 1, v, 5) * 6.28; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(x + Math.cos(aa) * 0.8, y + (rz(i, 2, v, 5) - 0.5), z + Math.sin(aa) * 0.8), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
   if (fein) for (let k = 0; k < 3 + Math.floor(R(10) * 3); k++) { const aa = k * 2.1 + R(11) * 6, dx = Math.cos(aa), dz = Math.sin(aa), l = 1.3 + R(12) * 0.8; t.push(ast(dx * 0.25, 0.15, dz * 0.25, dx * l, -0.3, dz * l, dicke * 0.45, dicke * 0.15, P.rinde, 5)); }
@@ -272,7 +272,7 @@ function tanne(v: number, fein = true): THREE.BufferGeometry {
   }
   const karte = new THREE.BufferGeometry(); karte.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); karte.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); karte.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); karte.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); karte.setIndex(idx);
   t.push(karte, fertig(new THREE.ConeGeometry(0.28, 1.5, 6).translate(0, hoehe - 0.3, 0), () => new THREE.Color('#3a6b45')));
-  const gr = vereint(t, true); gr.scale(1.45, 1.45, 1.45); return gr;
+  const gr = vereint(t, true); gr.scale(0.75, 0.75, 0.75); return gr;
 }
 function busch(v: number, fein = true): THREE.BufferGeometry {
   const R = (i: number) => rz(i, v, 4, 80), s = v * 3.3 + 7, g = 0.75 + 0.6 * R(1), farbe = kronenFarbe(0.8, 0.9 * g, 1.5 * g, s, '#1f3d1f', '#3c6a2c', '#86a84a'), kern = new THREE.Color('#1f3d1f').multiplyScalar(0.6);
