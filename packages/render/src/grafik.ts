@@ -278,7 +278,7 @@ export class Lichtstrahlen {
   }
   /** sonne: Einheitsvektor zur Sonne; nacht 0…1 */
   update(ziel: THREE.Vector3, sonne: THREE.Vector3, nacht: number, zeit: number): void {
-    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.3 + nacht * 0.05;
+    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.14 + nacht * 0.03;
     const x = new THREE.Vector3(-sonne.z, 0, sonne.x).normalize(), z = new THREE.Vector3().crossVectors(x, sonne), m = new THREE.Matrix4().makeBasis(x, sonne, z), q = new THREE.Quaternion().setFromRotationMatrix(m);
     const farbe = new THREE.Color().set('#ffe0aa').lerp(new THREE.Color('#9db4ff'), Math.min(1, nacht * 1.4));
     for (let a = -2; a < 2; a++) for (let b = -2; b < 2; b++) {
@@ -286,7 +286,7 @@ export class Lichtstrahlen {
       const px = (gx + 0.15 + 0.7 * h2) * Z, pz = (gz + 0.15 + 0.7 * h3) * Z, d = Math.hypot(px - ziel.x, pz - ziel.z), f = 1 - Math.min(1, Math.max(0, (d - 50) / 45));
       const o = h1 < 0.6 ? st * f * (0.7 + 0.3 * Math.sin(zeit * 0.22 + h5 * 20)) * (0.6 + 0.8 * h4) : 0;
       slot.mat.opacity = o; slot.mat.color.copy(farbe); slot.grp.visible = o > 0.002; if (!slot.grp.visible) continue;
-      const breite = 9 + 16 * h4, laenge = 70 + 40 * h5, y0 = bodenHoehe(px, pz) - 4;
+      const breite = 5 + 8 * h4, laenge = 70 + 40 * h5, y0 = bodenHoehe(px, pz) - 4;
       slot.grp.position.set(px + sonne.x * (laenge / 2 - 4), y0 + sonne.y * (laenge / 2 - 4), pz + sonne.z * (laenge / 2 - 4)); slot.grp.quaternion.copy(q);
       slot.grp.children[0].scale.set(breite, laenge, 1); slot.grp.children[1].scale.set(breite, laenge, 1);
     }
