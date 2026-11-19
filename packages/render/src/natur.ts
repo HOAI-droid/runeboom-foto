@@ -46,7 +46,7 @@ function kronenFarbe(cy: number, ry: number, rx: number, s: number, dunkel: stri
     const n = wr(px * 3.1, py * 3.1, pz * 3.1, s + 9) * 0.5 + 0.5, f = wr(px * 9, py * 9, pz * 9, s + 4) * 0.5 + 0.5;
     const t = h * 0.62 + rr * 0.34 + n * 0.34 + f * 0.1 + ny * 0.2 - 0.36;
     if (t < 0.5) c.copy(D).lerp(M, Math.max(0, t * 2)); else c.copy(M).lerp(H, Math.min(1, (t - 0.5) * 2));
-    return c.multiplyScalar(1.3);
+    return c.multiplyScalar(1.6);
   };
 }
 /** Ast oder Stamm: Kegelstumpf von (x0,y0,z0) nach (x1,y1,z1) */
