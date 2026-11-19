@@ -271,7 +271,7 @@ export function glatteBurg(stufe: number): THREE.Group {
   teil(g, quader(1.1, 5.2, 1.1), matStein(), 5.4, 11.6, -3.2); teil(g, quader(1.4, 0.3, 1.4), matStein(), 5.4, 16.6, -3.2); teil(g, quader(1.0, 0.05, 1.0), matSchatten(), 5.4, 16.92, -3.2, false);
   kristall(g, 6.3, 5.0, -1.5, 0, -1.15, 1.1); kristall(g, 1.2, 7.2, 1.75, 1.2, 0, 0.9); kristall(g, -0.15, 3.4, -2.6, 0, 1.1, 0.8); kristall(g, 3.0, 15.4, -1.5, 0, 0, 1.2); kristall(g, -1.2, 5.3, 4.2, 0.5, 0.3, 0.8);
   // Holzturm (hinten links): Bruchsteinfuß, hohes Fachwerk, auskragende Spitze mit steilem Pyramidendach
-  bruchstein(g, -4.4, -3.2, 3.4, 3.4, 0.4, 2.1, 5); obergeschoss(g, -4.4, 2.5, -3.2, 3.2, 3.2, 5.8, [4.2]); obergeschoss(g, -4.4, 8.5, -3.2, 3.9, 3.9, 1.9, [9.4]);
+  bruchstein(g, -4.4, -3.2, 3.4, 3.4, 0.4, 2.1, 5); obergeschoss(g, -4.4, 2.5, -3.2, 3.2, 3.2, 5.8, [4.2]); obergeschoss(g, -4.4, 8.5, -3.2, 3.9, 3.9, 1.9, [1.0]);
   teil(g, pyramide(5.2, 4.2), matDach(dach), -4.4, 10.4 + 2.1, -3.2); teil(g, new THREE.CylinderGeometry(0.06, 0.06, 1.8, 6), matGold(), -4.4, 15.4, -3.2, false); kristall(g, -4.4, 15.7, -3.2, 0, 0, 0.55);
   // Wehrgang rechts vorn mit Rundturm
   bruchstein(g, 3.9, 4.0, 5.2, 1.3, 0.4, 3.3, 7); const zk = new THREE.Group(); zk.position.set(3.9, 3.7, 4.0); g.add(zk); zinnen(zk, 5.2, 1.3, 0, 0.45);
@@ -286,5 +286,36 @@ export function glatteBurg(stufe: number): THREE.Group {
     for (const [x, z] of [[-R, -R], [R, -R], [-R, R], [R, R]]) rundturm(g, x, z, 4.9, 1.0, dach, false);
   }
   if (stufe >= 6) for (const [x, z] of [[-4.4, -3.2], [6.2, 4.0]]) kristall(g, x, 8.6, z, 0, 0, 1.0);
+  return verschmelzen(g);
+}
+
+const matRune = () => stoff('rune', () => new THREE.MeshBasicMaterial({ color: new THREE.Color('#6fc3ff').multiplyScalar(1.7), toneMapped: false }));
+const DACH_VOLK: Record<string, string> = { glutborn: '#7a4a38', hainmar: '#46583a', sturmweber: '#3a5a86' };
+/** Wachturm im Stil des Konzeptbilds: Bruchsteinfuß, Fachwerkschaft mit Fenstern, auskragende Wehrplattform, steiles Schieferdach mit Gaube, Runenstein am Eingang */
+export function glatteWachturm(stufe: number, volk = ''): THREE.Group {
+  const g = new THREE.Group(), dach = DACH_VOLK[volk] ?? '#3a4660';
+  teil(g, quader(6.2, 0.35, 6.0), matSteinMoos(), 0.05, 0.175, 0); teil(g, quader(5.6, 0.3, 5.5), matStein(), -0.05, 0.12, 0.05);
+  bruchstein(g, 0, 0, 5.0, 5.0, 0.3, 2.4, 11);
+  scharte(g, -2.5, 1.5, 0.4, -Math.PI / 2); scharte(g, 2.5, 1.5, -0.6, Math.PI / 2); scharte(g, 0.8, 1.6, -2.5, Math.PI);
+  // Eingang: Rundbogen mit Holztür und Laterne
+  teil(g, rahmen(1.0, 1.7, 0.2, 0.45), matStein(), 0, 0.3, 2.35);
+  teil(g, weltUV(new THREE.ExtrudeGeometry(bogen(1.0, 1.7), { depth: 0.14, bevelEnabled: false, curveSegments: 10 }), 2), matHolzD(), 0, 0.3, 2.45);
+  for (const yy of [0.7, 1.5]) teil(g, quader(1.0, 0.1, 0.06), matEisen(), 0, yy, 2.6, false);
+  teil(g, quader(0.05, 0.6, 0.05), matEisen(), 1.1, 1.7, 2.55); teil(g, new THREE.BoxGeometry(0.2, 0.3, 0.2), matFenster(), 1.1, 2.4, 2.6, false); teil(g, quader(0.3, 0.06, 0.3), matEisen(), 1.1, 2.7, 2.6);
+  // Schaft in Fachwerk, darüber die auskragende Plattform
+  obergeschoss(g, 0, 2.7, 0, 4.2, 4.2, 5.5, [2.9]);
+  obergeschoss(g, 0, 8.2, 0, 5.3, 5.3, 1.9, [0.95]);
+  // Steiles Schieferdach mit Gaube, Spitze und Wetterfahne
+  teil(g, pyramide(7.0, 5.4), matDach(dach), 0, 10.1 + 2.7, 0);
+  teil(g, quader(1.3, 1.1, 1.0), matPutz(), 0, 10.95, 2.0); teil(g, new THREE.BoxGeometry(0.5, 0.7, 0.05), matFenster(), 0, 11.0, 2.53, false); teil(g, new THREE.BoxGeometry(0.7, 0.9, 0.1), matHolzD(), 0, 11.0, 2.5);
+  satteldach(g, 0, 11.5, 2.0, 1.2, 1.5, 0.75, Math.PI / 2, dach, false);
+  teil(g, new THREE.CylinderGeometry(0.07, 0.07, 3.2, 6), matGold(), 0, 15.7, 0, false);
+  if (stufe < 2) teil(g, new THREE.PlaneGeometry(1.5, 0.9), matFahne(), 0.75, 16.8, 0, false);
+  else { const k = teil(g, new THREE.OctahedronGeometry(1, 0), matKristall(), 0, 17.2, 0, false); k.scale.set(0.5, 1.2, 0.5); }
+  // Kristalle aus der Mauer, Runenstein vorn links
+  kristall(g, 2.55, 1.4, 1.0, 0, -1.1, 0.8); kristall(g, -2.4, 6.2, -1.2, 0.2, 1.1, 0.55);
+  teil(g, quader(1.5, 3.3, 0.55), matStein(), -1.9, 1.65, 3.35).rotation.y = 0.12; teil(g, quader(1.7, 0.3, 0.7), matSteinMoos(), -1.9, 0.15, 3.35);
+  for (const [x, y] of [[-0.3, 1.0], [-0.1, 1.9], [0.1, 2.5], [-0.2, 0.5]] as number[][]) teil(g, new THREE.BoxGeometry(0.14, 0.34, 0.05), matRune(), -1.9 + x * 1.2, y + 0.3, 3.65, false);
+  if (stufe >= 3) { kristall(g, 2.1, 10.3, 2.0, 0.4, -0.6, 0.6); kristall(g, -2.1, 10.3, 2.0, 0.4, 0.6, 0.6); teil(g, new THREE.SphereGeometry(0.18, 8, 6), matGold(), 0, 15.2, 0, false); }
   return verschmelzen(g);
 }
