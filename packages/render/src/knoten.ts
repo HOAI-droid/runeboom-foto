@@ -200,7 +200,7 @@ class NachbearbeitungGPU implements Post {
     this.pipe = new THREE.RenderPipeline(renderer, Fn(() => {
       const q = uv(), r = tiltR(q);
       const c = vec3(select(r.lessThan(0.05), waag.sample(q).rgb, blur(waag, q, vec2(0, r).div(screenSize)))).toVar();
-      c.assign(pow(max(c, 0).div(0.18), vec3(1.14)).mul(0.18)); // Kontrast um das mittlere Grau
+      c.assign(pow(max(c, 0).div(0.18), vec3(1.04)).mul(0.18).add(vec3(0.016, 0.018, 0.026))); // sanfter Kontrast, Aufheller in den Tiefen
       const l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       c.assign(mix(c, c.mul(tint), smoothstep(0.3, 1, l).mul(0.35)));
       c.assign(mix(c, c.mul(vec3(0.78, 0.92, 1.16)), smoothstep(0, 0.45, l).oneMinus().mul(0.5)));

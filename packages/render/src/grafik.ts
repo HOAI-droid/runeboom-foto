@@ -275,7 +275,7 @@ export function becken(zellen: Float32Array, mat: THREE.Material): THREE.Mesh {
 
 // ================= Tag und Nacht =================
 export interface Stimmung { top: string; bot: string; fog: string; sun: string; sunI: number; sunP: [number, number, number]; hemiS: string; hemiG: string; hemiI: number; exp: number; glow: number; lamp: number; tint: string; bloom: number; wasser: [string, string, string]; nebel: string; dunst: number }
-export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffd8a0', sunI: 5.4, sunP: [-50, 34, 34], hemiS: '#8fa8dc', hemiG: '#5a3e22', hemiI: 1.15, exp: 1.28, glow: 0.62, lamp: 0.3, tint: '#ffe2c0', bloom: 0.34, wasser: ['#2a6478', '#6fa8b0', '#fff1c8'], nebel: '#f4e6cc', dunst: 0 };
+export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffd8a0', sunI: 5.4, sunP: [-50, 34, 34], hemiS: '#a6bbea', hemiG: '#80613c', hemiI: 1.9, exp: 1.36, glow: 0.62, lamp: 0.3, tint: '#ffe2c0', bloom: 0.34, wasser: ['#2a6478', '#6fa8b0', '#fff1c8'], nebel: '#f4e6cc', dunst: 0 };
 export const NACHT: Stimmung = { top: '#060b1e', bot: '#24386a', fog: '#1b2a52', sun: '#9db4ff', sunI: 1.7, sunP: [44, 58, -24], hemiS: '#5a73b8', hemiG: '#241c3c', hemiI: 0.85, exp: 1.25, glow: 0.7, lamp: 0.8, tint: '#c8d6ff', bloom: 0.28, wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#55607e', dunst: 0 };
 const c1 = new THREE.Color(), c2 = new THREE.Color();
 const mixC = (a: string, b: string, t: number, out: THREE.Color) => out.copy(c1.set(a)).lerp(c2.set(b), t);
@@ -392,7 +392,7 @@ const ABSCHLUSS = () => new THREE.ShaderMaterial({
     vec3 aces(vec3 c) {
       const mat3 I = mat3(vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
       const mat3 O = mat3(vec3(1.60475, -0.10208, -0.00327), vec3(-0.53108, 1.10813, -0.07276), vec3(-0.07367, -0.00605, 1.07602));
-      c = 0.18 * pow(max(c, vec3(0.0)) / 0.18, vec3(1.14)); // Kontrast um das mittlere Grau: tiefere Schatten, leuchtendere Lichter
+      c = 0.18 * pow(max(c, vec3(0.0)) / 0.18, vec3(1.04)) + vec3(0.016, 0.018, 0.026); // sanfter Kontrast um das mittlere Grau, dazu ein Aufheller (Umgebungslicht) in den Tiefen
       c *= uBelichtung / 0.6; return clamp(O * rrt(I * c), 0.0, 1.0); }
     vec3 srgb(vec3 c) { return mix(pow(c, vec3(0.41666)) * 1.055 - 0.055, c * 12.92, vec3(lessThanEqual(c, vec3(0.0031308)))); }
     void main(){
