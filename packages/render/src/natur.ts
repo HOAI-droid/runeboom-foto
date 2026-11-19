@@ -197,7 +197,7 @@ function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.Buffe
   const farbe = kronenFarbe(my, Math.max(1.5, (ymax - ymin) / 2), Math.max(1.5, hx), s, d, m, h);
   const streu: Streuung = { h: P.streuung[0], s: P.streuung[1], l: P.streuung[2], form: P.form, aus: P.ausreisser.map((c) => new THREE.Color(c)), ausWahr: 0.14 + 0.1 * R(16) };
   t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 1.1 : 1.7) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
-  { const kern = new THREE.Color(m).multiplyScalar(0.45); t.push(buschel(hx * 0.16, (ymax - ymin) * 0.1, hx * 0.16, mx, my - 0.2, mz, s, () => kern, 0, 0.3)); // winziger dunkler Kern, damit kein glatter Blob durchscheint }
+  { const kern = new THREE.Color(m).multiplyScalar(0.45); t.push(buschel(hx * 0.16, (ymax - ymin) * 0.1, hx * 0.16, mx, my - 0.2, mz, s, () => kern, 0, 0.3)); } // winziger dunkler Kern, damit kein glatter Blob durchscheint
   if (beeren) for (let i = 0; i < 8; i++) { const [x, y, z] = punkte[Math.floor(rz(i, 3, v, 5) * punkte.length)], aa = rz(i, 1, v, 5) * 6.28; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(x + Math.cos(aa) * 0.8, y + (rz(i, 2, v, 5) - 0.5), z + Math.sin(aa) * 0.8), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
   if (fein) for (let k = 0; k < 3 + Math.floor(R(10) * 3); k++) { const aa = k * 2.1 + R(11) * 6, dx = Math.cos(aa), dz = Math.sin(aa), l = 1.3 + R(12) * 0.8; t.push(ast(dx * 0.25, 0.15, dz * 0.25, dx * l, -0.3, dz * l, dicke * 0.45, dicke * 0.15, P.rinde, 5)); }
   return vereint(t, true);
