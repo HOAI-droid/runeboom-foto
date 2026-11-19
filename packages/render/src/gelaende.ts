@@ -46,16 +46,13 @@ function farbeAn(wx: number, wz: number, hv: number, ny: number, S: (x: number, 
   if (steil > 0) { const k = FELS_DUNKEL, f = FELS, t = glatt(0.3, 0.7, m1); const fr = k[0] + (f[0] - k[0]) * t, fg = k[1] + (f[1] - k[1]) * t, fb = k[2] + (f[2] - k[2]) * t; r += (fr - r) * steil * 0.75; g += (fg - g) * steil * 0.75; b += (fb - b) * steil * 0.75; }
   // Ufer und Lavarand: Bänder mit unregelmäßiger Breite (Rauschen), dazu Sand-, Kies- und Schlammflecken
   if (art !== 'w') {
-    let wasser = false, lava = false;
-    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) { const q = S(Math.floor(wx) + dx, Math.floor(wz) + dz); if (q && q.a === 'w') wasser = true; else if (q && q.a === 'l') lava = true; }
-    if (wasser) {
-      const e = hv - WASSER_Y, bw = 0.55 + 0.7 * m3 + 0.35 * m2; // Höhe über dem Spiegel; Bandbreite je Stelle verschieden
-      if (e < bw + 0.5) {
-        const nass = glatt(0.22 + 0.25 * m3, -0.12, e), kies = glatt(bw, 0.05, e) * glatt(0.3, 0.62, m1) * (1 - nass * 0.5), sand = glatt(bw * 0.8, 0.08, e) * glatt(0.48, 0.7, m3) * (1 - kies * 0.6), kv = 0.75 + 0.5 * m1;
-        r += (SAND2[0] - r) * sand * 0.85; g += (SAND2[1] - g) * sand * 0.85; b += (SAND2[2] - b) * sand * 0.85;
-        r += (KIES[0] * kv - r) * kies * 0.85; g += (KIES[1] * kv - g) * kies * 0.85; b += (KIES[2] * kv - b) * kies * 0.85;
-        r += (SCHLAMM[0] - r) * nass * 0.7; g += (SCHLAMM[1] - g) * nass * 0.7; b += (SCHLAMM[2] - b) * nass * 0.7;
-      }
+    let dw = 99, lava = false;
+    for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) { const q = S(Math.floor(wx) + dx, Math.floor(wz) + dz); if (!q) continue; if (q.a === 'w') dw = Math.min(dw, Math.hypot(Math.floor(wx) + dx + 0.5 - wx, Math.floor(wz) + dz + 0.5 - wz) - 0.5); else if (q.a === 'l') lava = true; }
+    if (dw < 5) { // Abstand zum Wasser in Blöcken bestimmt die Bänder: feucht, Kies, Sand – jeweils mit wechselnder Breite
+      const nass = glatt(0.9 + 0.7 * m3, 0.0, dw), kies = glatt(2.2 + 2.0 * m3, 0.5, dw) * glatt(0.3, 0.62, m1) * (1 - nass * 0.5), sand = glatt(3.2 + 1.8 * m2, 0.7, dw) * glatt(0.4, 0.66, m3) * (1 - kies * 0.6), kv = 0.75 + 0.5 * m1;
+      r += (SAND2[0] - r) * sand * 0.85; g += (SAND2[1] - g) * sand * 0.85; b += (SAND2[2] - b) * sand * 0.85;
+      r += (KIES[0] * kv - r) * kies * 0.85; g += (KIES[1] * kv - g) * kies * 0.85; b += (KIES[2] * kv - b) * kies * 0.85;
+      r += (SCHLAMM[0] - r) * nass * 0.7; g += (SCHLAMM[1] - g) * nass * 0.7; b += (SCHLAMM[2] - b) * nass * 0.7;
     }
     if (lava) { // Lava: abgekühlte Basaltkruste mit glimmenden Rissen, nach außen Asche und Fels
       const e = hv - LAVA_Y, bw = 0.9 + 0.9 * m3, kruste = glatt(bw, -0.1, e) * (0.75 + 0.25 * m1), glut = glatt(0.35, -0.2, e) * glatt(0.55, 0.8, m1) * 0.55;

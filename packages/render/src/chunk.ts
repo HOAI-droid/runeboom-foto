@@ -81,8 +81,8 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     else if (prA > 0.8 && h3(x, 48, z) < 0.012) { const g = 0.7 + h3(x, 49, z) * 1.0; natur.push(6, lx, y, lz, h3(x, 36, z) * 6.283, g, Math.floor(h3(x, 38, z) * 6), 0); for (let q = 0; q < 3; q++) { const fx = lx + (h3(x, 50 + q, z) - 0.5) * 2.4 * g, fz = lz + (h3(x, 53 + q, z) - 0.5) * 2.4 * g; natur.push(9, fx, bodenHoehe(ox + fx, oz + fz) - 0.05, fz, h3(x, 56 + q, z) * 6.283, 0.9 + h3(x, 59 + q, z) * 0.6, q, 0); } }
     // Gras: Dichte nach Abstand zu Weg und Wasser, im Wald kürzer; mehrere Büschel je Block mit Versatz
     const pr = pfadRand(x + 0.5, z + 0.5);
-    let wd = 9; for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) { const q = S(x + dx, z + dz); if (q && q.a === 'w') wd = Math.min(wd, Math.hypot(dx, dz)); }
-    const dichte = Math.min(1, Math.max(0, (pr - 0.2) / 1.6)) * Math.min(1, Math.max(0, (wd - 0.9 - 1.2 * fbm(x, z, 0.3, seed() + 97)) / 2.2)) * (0.55 + 0.9 * fbm(x, z, 0.2, seed() + 98)), zahl = Math.floor(dichte * (wald > 0.52 ? 2.2 : 3.4) + h3(x, 70, z));
+    let wd = 9; for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) { const q = S(x + dx, z + dz); if (q && q.a === 'w') wd = Math.min(wd, Math.hypot(dx, dz)); }
+    const dichte = Math.min(1, Math.max(0, (pr - 0.2) / 1.6)) * Math.min(1, Math.max(0, (wd - 1.8 - 1.8 * fbm(x, z, 0.3, seed() + 97)) / 2.2)) * (0.55 + 0.9 * fbm(x, z, 0.2, seed() + 98)), zahl = Math.floor(dichte * (wald > 0.52 ? 2.2 : 3.4) + h3(x, 70, z));
     for (let q = 0; q < Math.min(4, zahl); q++) { const gx = lx + (h3(x, 71 + q, z) - 0.5) * 0.9, gz = lz + (h3(x, 75 + q, z) - 0.5) * 0.9; natur.push(7, gx, bodenHoehe(ox + gx, oz + gz), gz, h3(x, 79 + q, z) * 6.283, (wald > 0.52 ? 0.7 : 0.85) + h3(x, 83 + q, z) * 0.5, Math.floor(h3(x, 87 + q, z) * 6), 0); }
     // Wegrand: trockene Büschel und Kiesel
     if (pr > -0.2 && pr < 1.4) {
@@ -94,10 +94,10 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
   }
   if (GLATT.an && stufe >= 3) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) { // Ufer: Schilf und Kiesel an Land und im flachen Wasser, nur Darstellung
     const s = S(x, z); if (!s || (s.a !== 'gras' && s.a !== 'w')) continue;
-    let nah = false; for (let dx = -1; dx <= 1 && !nah; dx++) for (let dz = -1; dz <= 1; dz++) { const q = S(x + dx, z + dz); if (q && (s.a === 'w' ? q.a !== 'w' : q.a === 'w')) { nah = true; break; } }
-    if (!nah) continue;
+    let nah = false, breit = false; for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) { const q = S(x + dx, z + dz); if (q && (s.a === 'w' ? q.a !== 'w' : q.a === 'w')) { breit = true; if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) nah = true; } }
+    if (!breit) continue;
     const jx = h3(x, 41, z), jz = h3(x, 42, z), lx = x - ox + 0.1 + jx * 0.8, lz = z - oz + 0.1 + jz * 0.8, y = bodenHoehe(x + 0.1 + jx * 0.8, z + 0.1 + jz * 0.8), rv = fbm(x, z, 0.25, seed() + 99);
-    if (h3(x, 43, z) < 0.2 + 0.55 * rv) natur.push(11, lx, y - 0.1, lz, jx * 6.283, 0.7 + jz * 0.7, Math.floor(h3(x, 44, z) * 3), 0); // Schilf nur in Gruppen
+    if (nah && h3(x, 43, z) < 0.2 + 0.55 * rv) natur.push(11, lx, y - 0.1, lz, jx * 6.283, 0.7 + jz * 0.7, Math.floor(h3(x, 44, z) * 3), 0); // Schilf nur in Gruppen
     for (let q = 0; q < 4; q++) if (h3(x, 45 + q, z) < 0.12 + 0.5 * (1 - rv)) { const kx = lx + (h3(x, 100 + q, z) - 0.5) * 1.2, kz = lz + (h3(x, 104 + q, z) - 0.5) * 1.2; natur.push(6, kx, bodenHoehe(ox + kx, oz + kz) - 0.04, kz, h3(x, 108 + q, z) * 6.283, 0.08 + h3(x, 112 + q, z) * 0.3, Math.floor(h3(x, 116 + q, z) * 6), 0); } // Kies und Steine, mal viel, mal wenig
     if (h3(x, 120, z) < 0.04) natur.push(6, lx, y - 0.1, lz, jz * 6.283, 0.7 + h3(x, 121, z) * 0.7, Math.floor(h3(x, 122, z) * 6), 0); // gelegentlich ein Findling
   }

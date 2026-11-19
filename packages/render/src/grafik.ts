@@ -156,23 +156,25 @@ const WVS = 'attribute float aTiefe; varying vec3 vW; varying float vT; void mai
 const wasserGL = () => new THREE.ShaderMaterial({
   uniforms: { uZeit: ZEIT, ...WASSER_U, ...LICHT_U }, vertexShader: WVS, transparent: true, depthWrite: false,
   fragmentShader: `uniform float uZeit, uNacht; uniform vec3 uTief, uHell, uFunkeln, uLichtFarbe, uSonne, uSonneC; uniform sampler2D uLicht; varying vec3 vW; varying float vT; ${NOISE_GLSL}
+    vec2 wellenGrad(vec2 q) { float e = 0.08, n = rausch(q); return vec2(rausch(q + vec2(e, 0.0)) - n, rausch(q + vec2(0.0, e)) - n) / e; }
     void main(){
       float t = uZeit; vec2 p = vW.xz;
-      vec2 d1 = vec2(0.8, 0.6), d2 = vec2(-0.5, 0.85), d3 = vec2(0.95, -0.3), d4 = vec2(-0.7, -0.7), d5 = vec2(0.3, -0.95);
-      vec2 g = d1 * 0.066 * cos(dot(d1, p) * 1.1 + t * 0.9) + d2 * 0.092 * cos(dot(d2, p) * 2.3 + t * 1.3 + 1.7) + d3 * 0.15 * cos(dot(d3, p) * 5.0 + t * 2.0 + 3.1)
-             + d4 * 0.21 * cos(dot(d4, p) * 9.5 + t * 2.8 + 0.6) + d5 * 0.26 * cos(dot(d5, p) * 16.0 + t * 3.6 + 2.2); // fünf Wellenstufen, fein bis grob
-      vec2 q = p * 3.0 + vec2(t * 0.35, -t * 0.28); float n0 = rausch(q), nx = rausch(q + vec2(0.06, 0.0)), nz = rausch(q + vec2(0.0, 0.06));
-      g += vec2(n0 - nx, n0 - nz) * 1.4;
+      // unregelmäßige, wandernde Wellen: vier Rauschlagen (Maßstab, Drift, Stärke), Neigung aus Differenzen – kein regelmäßiges Streifenmuster
+      vec2 g = vec2(0.0);
+      g += wellenGrad(p * 0.35 + vec2(t * 0.05, t * 0.03)) * 0.35 * 1.2 + wellenGrad(p * 0.9 + vec2(-t * 0.08, t * 0.06) + 3.1) * 0.9 * 0.8
+          + wellenGrad(p * 2.2 + vec2(t * 0.12, -t * 0.1) + 7.7) * 2.2 * 0.42 + wellenGrad(p * 5.0 + vec2(-t * 0.2, t * 0.15) + 1.9) * 5.0 * 0.2;
+      g *= 0.22;
       vec3 N = normalize(vec3(-g.x, 1.0, -g.y)), V = normalize(cameraPosition - vW), R = reflect(-V, N);
       float fr = 0.02 + 0.98 * pow(1.0 - clamp(dot(V, N), 0.0, 1.0), 5.0);
       vec3 himmel = mix(uHell * 1.1 + uFunkeln * 0.25, uFunkeln * 0.6 + vec3(0.35, 0.5, 0.7) * 0.5 * (1.0 - uNacht), clamp(R.y, 0.0, 1.0));
-      float tiefe = clamp(vT, 0.0, 3.0);
-      vec3 c = mix(mix(uHell * 1.2, uTief, smoothstep(0.0, 1.6, tiefe)), himmel, fr * 0.9);
+      float tiefe = clamp(vT * 2.2, 0.0, 3.0);
+      vec3 flach = mix(uHell * 1.1, vec3(0.16, 0.26, 0.2), (1.0 - smoothstep(0.0, 0.8, tiefe)) * 0.45); // am Ufer spiegelt sich dunkles Grün
+      vec3 c = mix(mix(flach, uTief * 0.8, smoothstep(0.1, 2.2, tiefe)), himmel, fr * 0.85);
       float sd = clamp(dot(R, uSonne), 0.0, 1.0); c += uSonneC * (pow(sd, 220.0) * 6.0 + pow(sd, 24.0) * 0.4);
-      float sch = smoothstep(0.32, 0.0, tiefe + (rausch(p * 4.0 + t * 0.2) - 0.5) * 0.22) * (0.55 + 0.45 * sin(t * 1.2 + tiefe * 18.0)); // Uferschaum
+      float sch = smoothstep(0.16, 0.0, tiefe + (rausch(p * 3.0 + t * 0.15) - 0.5) * 0.5) * (0.35 + 0.65 * rausch(p * 6.0 - t * 0.3)) * 0.55; // weicher, ungleichmäßiger Uferschaum
       c = mix(c, vec3(0.92, 0.95, 0.92) * (0.55 + 0.45 * (1.0 - uNacht)), clamp(sch, 0.0, 1.0) * 0.8);
       float lm = texture2D(uLicht, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r; c += uLichtFarbe * lm * lm * uNacht * 0.35;
-      float alpha = clamp(0.28 + smoothstep(0.0, 1.4, tiefe) * 0.55 + fr * 0.35 + sch * 0.5, 0.0, 1.0);
+      float alpha = clamp(0.14 + smoothstep(0.0, 1.6, tiefe) * 0.72 + fr * 0.3 + sch * 0.4, 0.0, 1.0);
       gl_FragColor = vec4(c, alpha);
     }`
 });

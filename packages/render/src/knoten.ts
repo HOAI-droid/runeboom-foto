@@ -77,20 +77,19 @@ function wasser(): THREE.Material {
   // gleiche Rechnung wie wasserGL() in grafik.ts: vier Wellen mit analytischer Neigung, Kräuselung, Fresnel, Glanzlicht, Tiefenfarbe, Uferschaum
   m.colorNode = Fn(() => {
     const p = positionWorld.xz, t = uZeit;
-    const welle = (dx: number, dz: number, k: number, a: number, sp: number, ph: number) => vec2(dx, dz).mul(a * k).mul(cos(dot(vec2(dx, dz), p).mul(k).add(t.mul(sp)).add(ph)));
-    const g = welle(0.8, 0.6, 1.1, 0.06, 0.9, 0).add(welle(-0.5, 0.85, 2.3, 0.04, 1.3, 1.7)).add(welle(0.95, -0.3, 5.0, 0.03, 2.0, 3.1)).add(welle(-0.7, -0.7, 9.5, 0.022, 2.8, 0.6)).add(welle(0.3, -0.95, 16, 0.016, 3.6, 2.2)).toVar();
-    const q = p.mul(3).add(vec2(t.mul(0.35), t.mul(-0.28))), n0 = rausch(q), nx = rausch(q.add(vec2(0.06, 0))), nz = rausch(q.add(vec2(0, 0.06)));
-    g.addAssign(vec2(n0.sub(nx), n0.sub(nz)).mul(1.4));
+    const grad = (q: N) => { const n = rausch(q); return vec2(rausch(q.add(vec2(0.08, 0))).sub(n), rausch(q.add(vec2(0, 0.08))).sub(n)).div(0.08); };
+    const g = grad(p.mul(0.35).add(vec2(t.mul(0.05), t.mul(0.03)))).mul(0.35 * 1.2).add(grad(p.mul(0.9).add(vec2(t.mul(-0.08), t.mul(0.06))).add(3.1)).mul(0.9 * 0.8)).add(grad(p.mul(2.2).add(vec2(t.mul(0.12), t.mul(-0.1))).add(7.7)).mul(2.2 * 0.42)).add(grad(p.mul(5).add(vec2(t.mul(-0.2), t.mul(0.15))).add(1.9)).mul(5 * 0.2)).mul(0.22).toVar();
     const N = normalize(vec3(g.x.negate(), 1, g.y.negate())), V = normalize(cameraPosition.sub(positionWorld)), R = reflect(V.negate(), N);
     const fr = pow(clamp(dot(V, N), 0, 1).oneMinus(), 5).mul(0.98).add(0.02);
     const himmel = mix(uHell.mul(1.1).add(uFunkeln.mul(0.25)), uFunkeln.mul(0.6).add(vec3(0.35, 0.5, 0.7).mul(0.5).mul(uNacht.oneMinus())), clamp(R.y, 0, 1));
-    const tiefe = clamp(tiefeA, 0, 3);
-    const c = mix(mix(uHell.mul(1.2), uTief, smoothstep(0, 1.6, tiefe)), himmel, fr.mul(0.9)).toVar();
+    const tiefe = clamp(tiefeA.mul(2.2), 0, 3);
+    const flach = mix(uHell.mul(1.1), vec3(0.16, 0.26, 0.2), smoothstep(0, 0.8, tiefe).oneMinus().mul(0.45));
+    const c = mix(mix(flach, uTief.mul(0.8), smoothstep(0.1, 2.2, tiefe)), himmel, fr.mul(0.85)).toVar();
     const sd = clamp(dot(R, uSonne), 0, 1); c.addAssign(uSonneC.mul(pow(sd, 220).mul(6).add(pow(sd, 24).mul(0.4))));
-    const sch = smoothstep(0.32, 0, tiefe.add(rausch(p.mul(4).add(t.mul(0.2))).sub(0.5).mul(0.22))).mul(sin(t.mul(1.2).add(tiefe.mul(18))).mul(0.45).add(0.55));
+    const sch = smoothstep(0.16, 0, tiefe.add(rausch(p.mul(3).add(t.mul(0.15))).sub(0.5).mul(0.5))).mul(rausch(p.mul(6).sub(t.mul(0.3))).mul(0.65).add(0.35)).mul(0.55);
     c.assign(mix(c, vec3(0.92, 0.95, 0.92).mul(uNacht.oneMinus().mul(0.45).add(0.55)), clamp(sch, 0, 1).mul(0.8)));
     const lm = lichtWert(); c.addAssign(uLichtFarbe.mul(lm.mul(lm)).mul(uNacht).mul(0.35));
-    const alpha = clamp(smoothstep(0, 1.4, tiefe).mul(0.55).add(0.28).add(fr.mul(0.35)).add(sch.mul(0.5)), 0, 1);
+    const alpha = clamp(smoothstep(0, 1.6, tiefe).mul(0.72).add(0.14).add(fr.mul(0.3)).add(sch.mul(0.4)), 0, 1);
     return vec4(c, alpha);
   })();
   return m;
