@@ -96,15 +96,15 @@ function rahmen(w: number, h: number, rand: number, tiefe: number): THREE.Buffer
 function fenster(g: THREE.Group, x: number, y: number, z: number, ry: number, w = 0.55, h = 1.3, laden = false): void {
   const f = new THREE.Group(); f.position.set(x, y, z); f.rotation.y = ry; g.add(f);
   teil(f, rahmen(w, h, 0.17, 0.42), matStein(), 0, 0, -0.1);
-  teil(f, new THREE.ShapeGeometry(bogen(w, h), 10), matFenster(), 0, 0, 0.0, false);
-  teil(f, new THREE.BoxGeometry(0.05, h - w / 2, 0.05), matHolz(), 0, (h - w / 2) / 2, 0.1, false); teil(f, new THREE.BoxGeometry(w, 0.05, 0.05), matHolz(), 0, h * 0.45, 0.1, false);
+  teil(f, new THREE.ShapeGeometry(bogen(w, h), 10), matFenster(), 0, 0, 0.1, false);
+  teil(f, new THREE.BoxGeometry(0.05, h - w / 2, 0.05), matHolz(), 0, (h - w / 2) / 2, 0.15, false); teil(f, new THREE.BoxGeometry(w, 0.05, 0.05), matHolz(), 0, h * 0.45, 0.15, false);
   teil(f, new THREE.BoxGeometry(w + 0.55, 0.12, 0.5), matStein(), 0, -0.14, 0.13);
   if (laden) for (const s of [-1, 1]) { const l = teil(f, new THREE.BoxGeometry(w * 0.5, h * 0.95, 0.05), matHolz(), s * (w / 2 + 0.38), h * 0.48, 0.42); l.rotation.y = -s * 0.7; }
 }
 /** Schießscharte: schmaler Schlitz mit Laibung */
 function scharte(g: THREE.Group, x: number, y: number, z: number, ry: number): void {
   const f = new THREE.Group(); f.position.set(x, y, z); f.rotation.y = ry; g.add(f);
-  teil(f, rahmen(0.16, 1.0, 0.13, 0.4), matStein(), 0, 0, -0.1); teil(f, new THREE.PlaneGeometry(0.16, 0.9), matSchatten(), 0, 0.5, 0.02, false);
+  teil(f, rahmen(0.16, 1.0, 0.13, 0.4), matStein(), 0, 0, -0.1); teil(f, new THREE.PlaneGeometry(0.16, 0.9), matSchatten(), 0, 0.5, 0.1, false);
 }
 /** Gurtgesims und Konsolenkranz (Zinnenkranz kragt über die Wand vor, darunter Konsolsteine) */
 function gesims(g: THREE.Group, bx: number, bz: number, y: number, vor = 0.18, hoch = 0.28): void {
@@ -145,7 +145,7 @@ function torhaus(g: THREE.Group, z0: number, volk = ''): void {
   for (const yy of [0.5, 1.5, 2.45]) { teil(t, quader(ow - 0.04, 0.13, 0.08), matEisen(), 0, yy, 0.62); for (const sg of [-1, 1]) teil(t, new THREE.SphereGeometry(0.075, 6, 5), matEisen(), sg * (ow / 2 - 0.2), yy + 0.07, 0.66, false); }
   for (const sg of [-1, 1]) { teil(t, new THREE.TorusGeometry(0.12, 0.025, 6, 12), matEisen(), sg * 0.22, 1.2, 0.64, false); teil(t, quader(0.18, 0.14, 0.04), matEisen(), sg * 0.5, 0.9, 0.62, false); }
   for (const sg of [-1, 1]) { teil(t, quader(0.05, 0.6, 0.05), matEisen(), sg * 2.35, 2.4, T - 0.1); teil(t, new THREE.BoxGeometry(0.2, 0.28, 0.2), matFenster(), sg * 2.35, 3.1, T - 0.1, false); teil(t, quader(0.3, 0.06, 0.3), matEisen(), sg * 2.35, 3.38, T - 0.1); }
-  for (const sg of [-1, 1]) { const f = teil(t, new THREE.PlaneGeometry(0.9, 2.4), matFahne(), sg * 1.25, H - 1.6, T - 0.27, false); f.position.y = H - 1.6; teil(t, quader(1.0, 0.08, 0.08), matEisen(), sg * 1.25, H - 0.4, T - 0.27, false); }
+  for (const sg of [-1, 1]) { const f = teil(t, new THREE.PlaneGeometry(0.9, 2.4), matFahne(), sg * 1.25, H - 1.6, T - 0.18, false); f.position.y = H - 1.6; teil(t, quader(1.0, 0.08, 0.08), matEisen(), sg * 1.25, H - 0.4, T - 0.18, false); }
   void volk;
 }
 
