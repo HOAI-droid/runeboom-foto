@@ -46,7 +46,8 @@ function kronenFarbe(cy: number, ry: number, rx: number, s: number, dunkel: stri
     const n = wr(px * 3.1, py * 3.1, pz * 3.1, s + 9) * 0.5 + 0.5, f = wr(px * 9, py * 9, pz * 9, s + 4) * 0.5 + 0.5;
     const t = h * 0.62 + rr * 0.34 + n * 0.34 + f * 0.1 + ny * 0.2 - 0.36;
     if (t < 0.5) c.copy(D).lerp(M, Math.max(0, t * 2)); else c.copy(M).lerp(H, Math.min(1, (t - 0.5) * 2));
-    return c.multiplyScalar(1.6);
+    { const l = c.r * 0.299 + c.g * 0.587 + c.b * 0.114; c.setRGB(l + (c.r - l) * 0.72, l + (c.g - l) * 0.74, l + (c.b - l) * 0.72); } // gedeckter, natürlicher
+    return c.multiplyScalar(1.5);
   };
 }
 /** Ast oder Stamm: Kegelstumpf von (x0,y0,z0) nach (x1,y1,z1) */
@@ -140,10 +141,10 @@ interface Streuung { h: number; s: number; l: number; form: [number, number]; au
 type Art = 'eiche' | 'birke' | 'ahorn' | 'leucht';
 interface Preset { stamm: [number, number]; dicke: [number, number]; aeste: [number, number]; breite: [number, number]; hoehe: [number, number]; steil: [number, number]; blatt: [number, number]; dichte: [number, number]; farben: [string, string, string]; rinde: [string, string]; ausreisser: string[]; form: [number, number]; streuung: [number, number, number] }
 const PRESETS: Record<Art, Preset> = {
-  eiche: { stamm: [2.2, 3.6], dicke: [0.4, 0.6], aeste: [4, 6], breite: [1.0, 1.6], hoehe: [0.7, 1.05], steil: [0.35, 0.8], blatt: [0.9, 1.15], dichte: [0.85, 1.3], farben: ['#1a3418', '#3a6128', '#7d9f45'], rinde: ['#2c2118', '#5a4630'], ausreisser: ['#a6a838', '#2a4a22', '#c28a2a'], form: [0.8, 1.3], streuung: [0.05, 0.22, 0.12] },
-  birke: { stamm: [3.4, 5.0], dicke: [0.25, 0.36], aeste: [4, 6], breite: [0.6, 1.0], hoehe: [1.15, 1.6], steil: [0.7, 1.3], blatt: [0.65, 0.85], dichte: [0.8, 1.25], farben: ['#6e4a10', '#d3a22c', '#ffe27c'], rinde: ['#4a443a', '#f1ecde'], ausreisser: ['#7ea63a', '#e39a2a', '#fff0a0'], form: [0.9, 1.5], streuung: [0.06, 0.2, 0.12] },
-  ahorn: { stamm: [2.4, 3.8], dicke: [0.38, 0.56], aeste: [4, 6], breite: [1.1, 1.6], hoehe: [0.8, 1.15], steil: [0.4, 0.85], blatt: [1.0, 1.3], dichte: [0.85, 1.25], farben: ['#5c1e0e', '#c85c1c', '#ffae38'], rinde: ['#3a2a1d', '#6a5038'], ausreisser: ['#b02a18', '#e8c040', '#6a8a2a'], form: [0.85, 1.25], streuung: [0.05, 0.24, 0.14] },
-  leucht: { stamm: [2.6, 4.0], dicke: [0.36, 0.52], aeste: [4, 5], breite: [0.9, 1.4], hoehe: [0.8, 1.2], steil: [0.4, 0.9], blatt: [0.9, 1.15], dichte: [0.8, 1.2], farben: ['#262048', '#4f4580', '#9a8fd2'], rinde: ['#2c2418', '#5a4630'], ausreisser: ['#7a4a9a', '#3a4a8a', '#b8a0e0'], form: [0.85, 1.3], streuung: [0.05, 0.2, 0.12] }
+  eiche: { stamm: [2.2, 3.6], dicke: [0.4, 0.6], aeste: [4, 6], breite: [1.0, 1.6], hoehe: [0.7, 1.05], steil: [0.35, 0.8], blatt: [0.9, 1.15], dichte: [0.85, 1.3], farben: ['#1c3020', '#3b5a2c', '#78904c'], rinde: ['#2c2118', '#5a4630'], ausreisser: ['#8c9040', '#2a4024', '#a88034'], form: [0.8, 1.3], streuung: [0.05, 0.22, 0.12] },
+  birke: { stamm: [3.4, 5.0], dicke: [0.25, 0.36], aeste: [4, 6], breite: [0.6, 1.0], hoehe: [1.15, 1.6], steil: [0.7, 1.3], blatt: [0.65, 0.85], dichte: [0.8, 1.25], farben: ['#5e4a24', '#a58f3e', '#dccb86'], rinde: ['#4a443a', '#f1ecde'], ausreisser: ['#6c8a3c', '#c08a34', '#e8dca8'], form: [0.9, 1.5], streuung: [0.06, 0.2, 0.12] },
+  ahorn: { stamm: [2.4, 3.8], dicke: [0.38, 0.56], aeste: [4, 6], breite: [1.1, 1.6], hoehe: [0.8, 1.15], steil: [0.4, 0.85], blatt: [1.0, 1.3], dichte: [0.85, 1.25], farben: ['#503020', '#a05c26', '#d4a458'], rinde: ['#3a2a1d', '#6a5038'], ausreisser: ['#903c28', '#d0b050', '#607a30'], form: [0.85, 1.25], streuung: [0.05, 0.24, 0.14] },
+  leucht: { stamm: [2.6, 4.0], dicke: [0.36, 0.52], aeste: [4, 5], breite: [0.9, 1.4], hoehe: [0.8, 1.2], steil: [0.4, 0.9], blatt: [0.9, 1.15], dichte: [0.8, 1.2], farben: ['#2a2840', '#484468', '#8884ac'], rinde: ['#2c2418', '#5a4630'], ausreisser: ['#68507c', '#3c4670', '#a898c4'], form: [0.85, 1.3], streuung: [0.05, 0.2, 0.12] }
 };
 /** Wachstumsregeln je Art (Ebenen: 0 Stamm, 1 Äste, 2 Zweige, 3 Zweigspitzen mit Blättern), nach dem Vorbild rekursiver Baumgeneratoren */
 const WACHSTUM: Record<Art, { laenge: [number, number, number]; kinder: [number, number, number]; winkel: [number, number, number]; kraft: [number, number, number]; knorrig: [number, number, number, number]; start: [number, number, number]; verjuengung: [number, number, number, number]; blaetter: number }> = {
@@ -240,7 +241,7 @@ function farn(v: number, fein = true): THREE.BufferGeometry {
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); return g;
 }
-const BLUETEN = ['#9a64d8', '#e070b0', '#efeae0', '#f0c040'];
+const BLUETEN = ['#8c6cb8', '#c8789c', '#e8e4d8', '#d8b858'];
 /** Blühender Busch: grüner Busch mit vielen kleinen Blüten oben */
 function bluetenbusch(v: number, fein = true): THREE.BufferGeometry {
   const t: THREE.BufferGeometry[] = [busch(v, fein)], f = new THREE.Color(BLUETEN[v % BLUETEN.length]);
@@ -351,7 +352,7 @@ function schilf(v: number, fein = true): THREE.BufferGeometry {
   return halme(v + 7, 1.9, 0.9, ['#46662a', '#b4b86a'], 4, t);
 }
 
-const BLUMEN = ['#e8d06a', '#d86aa8', '#8fd0ff', '#f2f0ea'];
+const BLUMEN = ['#dcc878', '#c880a8', '#96b8d8', '#ece8e0'];
 const NETZE: (Map<string, THREE.BufferGeometry> | null)[] = [null, null];
 let MAT: { fest: THREE.Material; gras: THREE.Material; laub: THREE.Material; nadel: THREE.Material } | null = null;
 /** Netze je Detailstufe (1 = nah, fein; 0 = mittlere Entfernung, wenige Dreiecke); einmal je Art, geteilt von allen Kacheln */

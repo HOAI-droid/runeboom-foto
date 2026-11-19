@@ -38,6 +38,7 @@ function farbeAn(wx: number, wz: number, hv: number, ny: number, S: (x: number, 
     const erde = glatt(0.5, 0.72, m3); // kahle und trockene Stellen
     r += (ERDE[0] - r) * erde * 0.65; g += (ERDE[1] - g) * erde * 0.65; b += (ERDE[2] - b) * erde * 0.65;
   }
+  { const l = r * 0.2126 + g * 0.7152 + b * 0.0722; r = l + (r - l) * 0.88; g = l + (g - l) * 0.88; b = l + (b - l) * 0.88; } // insgesamt etwas gedeckter
   const hell = (grau ? 0.88 : 0.8) + (grau ? 0.22 : 0.4) * m1;
   r *= hell; g *= hell; b *= hell;
   // Steilhänge zeigen Fels (nur dort, wo kein Schnee liegt)

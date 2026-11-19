@@ -249,7 +249,7 @@ export function becken(zellen: Float32Array, mat: THREE.Material): THREE.Mesh {
 
 // ================= Tag und Nacht =================
 export interface Stimmung { top: string; bot: string; fog: string; sun: string; sunI: number; sunP: [number, number, number]; hemiS: string; hemiG: string; hemiI: number; exp: number; glow: number; lamp: number; tint: string; bloom: number; wasser: [string, string, string]; nebel: string; dunst: number }
-export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffbe6e', sunI: 5.4, sunP: [-50, 34, 34], hemiS: '#8fa8dc', hemiG: '#5a3e22', hemiI: 1.15, exp: 1.28, glow: 0.62, lamp: 0.3, tint: '#ffd2a0', bloom: 0.5, wasser: ['#1b7f8c', '#6fd2c6', '#fff1c8'], nebel: '#f8e2bc', dunst: 0.25 };
+export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffd8a0', sunI: 5.4, sunP: [-50, 34, 34], hemiS: '#8fa8dc', hemiG: '#5a3e22', hemiI: 1.15, exp: 1.28, glow: 0.62, lamp: 0.3, tint: '#ffe2c0', bloom: 0.34, wasser: ['#2a7a80', '#74b8b0', '#fff1c8'], nebel: '#f4e6cc', dunst: 0.25 };
 export const NACHT: Stimmung = { top: '#060b1e', bot: '#24386a', fog: '#1b2a52', sun: '#9db4ff', sunI: 1.7, sunP: [44, 58, -24], hemiS: '#5a73b8', hemiG: '#241c3c', hemiI: 0.85, exp: 1.25, glow: 0.7, lamp: 0.8, tint: '#c8d6ff', bloom: 0.28, wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#55607e', dunst: 0.16 };
 const c1 = new THREE.Color(), c2 = new THREE.Color();
 const mixC = (a: string, b: string, t: number, out: THREE.Color) => out.copy(c1.set(a)).lerp(c2.set(b), t);
@@ -375,7 +375,7 @@ const ABSCHLUSS = () => new THREE.ShaderMaterial({
       float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       c = mix(c, c * uTint, smoothstep(0.3, 1.0, l) * 0.35);
       c = mix(c, c * vec3(0.78, 0.92, 1.16), (1.0 - smoothstep(0.0, 0.45, l)) * 0.5);
-      c = mix(vec3(l), c, 1.22); vec2 q = vUv - 0.5; c *= 1.0 - dot(q, q) * 0.85;
+      c = mix(vec3(l), c, 0.96); vec2 q = vUv - 0.5; c *= 1.0 - dot(q, q) * 0.85;
       gl_FragColor = vec4(srgb(aces(max(c, 0.0))), 1.0); }`
 });
 export class Nachbearbeitung implements Post {

@@ -187,7 +187,7 @@ class NachbearbeitungGPU implements Post {
       const l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       c.assign(mix(c, c.mul(tint), smoothstep(0.3, 1, l).mul(0.35)));
       c.assign(mix(c, c.mul(vec3(0.78, 0.92, 1.16)), smoothstep(0, 0.45, l).oneMinus().mul(0.5)));
-      c.assign(mix(vec3(l), c, 1.22));
+      c.assign(mix(vec3(l), c, 0.96));
       const d = q.sub(0.5); c.mulAssign(dot(d, d).mul(-0.85).add(1));
       return vec4(max(c, 0), 1);
     })());
