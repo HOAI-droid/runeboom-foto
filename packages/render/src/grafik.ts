@@ -145,23 +145,34 @@ export const NOISE_GLSL = `
   float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += rausch(p) * a; p *= 2.03; a *= 0.5; } return s; }
   float fbm3(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 3; i++) { s += rausch(p) * a; p *= 2.03; a *= 0.5; } return s * 1.07; }`;
 const VS = 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
+/** Vertex-Shader des Wassers: reicht die Wassertiefe unter dem Spiegel (aTiefe, aus bodenHoehe) an den Fragment-Shader weiter */
+const WVS = 'attribute float aTiefe; varying vec3 vW; varying float vT; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vT = aTiefe; gl_Position = projectionMatrix * viewMatrix * w; }';
+/**
+ * Wasser: vier laufende Wellen (Richtung, Wellenzahl, Tempo) mit analytischer Neigung plus feine Kräuselung aus Rauschen, Fresnel-Spiegelung
+ * des Himmels, scharfes und breites Sonnenglanzlicht, Tiefenfarbe (flach hell, tief dunkel), Uferschaum in laufenden Bändern; durchscheinend im Flachen.
+ * Gleiche Rechnung in knoten.ts.
+ */
 const wasserGL = () => new THREE.ShaderMaterial({
-  uniforms: { uZeit: ZEIT, ...WASSER_U, ...LICHT_U }, vertexShader: VS,
-  fragmentShader: `uniform float uZeit, uNacht; uniform vec3 uTief, uHell, uFunkeln, uLichtFarbe, uSonne, uSonneC; uniform sampler2D uLicht; varying vec3 vW; ${NOISE_GLSL}
+  uniforms: { uZeit: ZEIT, ...WASSER_U, ...LICHT_U }, vertexShader: WVS, transparent: true, depthWrite: false,
+  fragmentShader: `uniform float uZeit, uNacht; uniform vec3 uTief, uHell, uFunkeln, uLichtFarbe, uSonne, uSonneC; uniform sampler2D uLicht; varying vec3 vW; varying float vT; ${NOISE_GLSL}
     void main(){
-      vec2 p = vW.xz; float t = uZeit;
-      float w = fbm(p * 0.7 + vec2(t * 0.09, t * 0.05)) + 0.5 * fbm(p * 1.8 - vec2(t * 0.07, -t * 0.11));
-      vec2 pe = p + vec2(0.07, 0.0), pn = p + vec2(0.0, 0.07);
-      float wx = fbm(pe * 0.7 + vec2(t * 0.09, t * 0.05)) + 0.5 * fbm(pe * 1.8 - vec2(t * 0.07, -t * 0.11));
-      float wz = fbm(pn * 0.7 + vec2(t * 0.09, t * 0.05)) + 0.5 * fbm(pn * 1.8 - vec2(t * 0.07, -t * 0.11));
-      vec3 nw = normalize(vec3((w - wx) * 5.0, 1.0, (w - wz) * 5.0)), V = normalize(cameraPosition - vW), R = reflect(-V, nw);
-      float fr = pow(1.0 - clamp(dot(V, nw), 0.0, 1.0), 4.0), glanz = pow(clamp(dot(R, uSonne), 0.0, 1.0), 80.0);
-      vec3 c = mix(uTief, uHell, smoothstep(0.62, 1.12, w));
-      c = mix(c, uFunkeln * 0.55 + uHell * 0.5, fr * 0.6); c += uSonneC * glanz * 2.5; // Spiegelung des Himmels und Sonnenglanz
-      float funk = step(0.99, h1(floor(vW.xz * 14.0) + floor(t * 1.5) * 7.13));
-      c += uFunkeln * funk * smoothstep(0.75, 1.05, w) * 0.9;
+      float t = uZeit; vec2 p = vW.xz;
+      vec2 d1 = vec2(0.8, 0.6), d2 = vec2(-0.5, 0.85), d3 = vec2(0.95, -0.3), d4 = vec2(-0.7, -0.7);
+      vec2 g = d1 * 0.10 * 0.9 * cos(dot(d1, p) * 0.9 + t * 0.9) + d2 * 0.07 * 1.6 * cos(dot(d2, p) * 1.6 + t * 1.3 + 1.7)
+             + d3 * 0.045 * 2.7 * cos(dot(d3, p) * 2.7 + t * 1.9 + 3.1) + d4 * 0.03 * 4.3 * cos(dot(d4, p) * 4.3 + t * 2.6 + 0.6);
+      vec2 q = p * 3.0 + vec2(t * 0.35, -t * 0.28); float n0 = rausch(q), nx = rausch(q + vec2(0.06, 0.0)), nz = rausch(q + vec2(0.0, 0.06));
+      g += vec2(n0 - nx, n0 - nz) * 1.4;
+      vec3 N = normalize(vec3(-g.x, 1.0, -g.y)), V = normalize(cameraPosition - vW), R = reflect(-V, N);
+      float fr = 0.02 + 0.98 * pow(1.0 - clamp(dot(V, N), 0.0, 1.0), 5.0);
+      vec3 himmel = mix(uHell * 1.1 + uFunkeln * 0.25, uFunkeln * 0.6 + vec3(0.35, 0.5, 0.7) * 0.5 * (1.0 - uNacht), clamp(R.y, 0.0, 1.0));
+      float tiefe = clamp(vT, 0.0, 3.0);
+      vec3 c = mix(mix(uHell * 1.2, uTief, smoothstep(0.0, 1.6, tiefe)), himmel, fr * 0.9);
+      float sd = clamp(dot(R, uSonne), 0.0, 1.0); c += uSonneC * (pow(sd, 220.0) * 6.0 + pow(sd, 24.0) * 0.4);
+      float sch = smoothstep(0.32, 0.0, tiefe + (rausch(p * 4.0 + t * 0.2) - 0.5) * 0.22) * (0.55 + 0.45 * sin(t * 1.2 + tiefe * 18.0)); // Uferschaum
+      c = mix(c, vec3(0.92, 0.95, 0.92) * (0.55 + 0.45 * (1.0 - uNacht)), clamp(sch, 0.0, 1.0) * 0.8);
       float lm = texture2D(uLicht, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r; c += uLichtFarbe * lm * lm * uNacht * 0.35;
-      gl_FragColor = vec4(c, 1.0);
+      float alpha = clamp(0.4 + smoothstep(0.0, 0.9, tiefe) * 0.55 + fr * 0.4 + sch * 0.5, 0.0, 1.0);
+      gl_FragColor = vec4(c, alpha);
     }`
 });
 const lavaGL = () => new THREE.ShaderMaterial({
@@ -226,10 +237,14 @@ const kegelGL = () => new THREE.ShaderMaterial({
   fragmentShader: 'varying float vZ; void main(){ float a = (1.0 - clamp(vZ, 0.0, 1.0)) * 0.05; gl_FragColor = vec4(1.0, 0.9, 0.65, a); }'
 });
 export function becken(zellen: Float32Array, mat: THREE.Material): THREE.Mesh {
-  const p: number[] = [], idx: number[] = [];
-  for (let k = 0; k < zellen.length; k += 3) { const x = zellen[k], y = zellen[k + 1], z = zellen[k + 2], b = p.length / 3; p.push(x, y, z, x + 1, y, z, x + 1, y, z + 1, x, y, z + 1); idx.push(b, b + 2, b + 1, b, b + 3, b + 2); }
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); geo.setIndex(idx);
-  return new THREE.Mesh(geo, mat);
+  const p: number[] = [], idx: number[] = [], tiefe: number[] = [];
+  for (let k = 0; k < zellen.length; k += 3) {
+    const x = zellen[k], y = zellen[k + 1], z = zellen[k + 2], b = p.length / 3;
+    p.push(x, y, z, x + 1, y, z, x + 1, y, z + 1, x, y, z + 1); idx.push(b, b + 2, b + 1, b, b + 3, b + 2);
+    for (const [dx, dz] of [[0, 0], [1, 0], [1, 1], [0, 1]]) tiefe.push(Math.max(0, y - bodenHoehe(x + dx, z + dz))); // Wassertiefe unter dem Spiegel (Ufer: 0)
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); geo.setAttribute('aTiefe', new THREE.Float32BufferAttribute(tiefe, 1)); geo.setIndex(idx);
+  const m = new THREE.Mesh(geo, mat); m.renderOrder = 4; return m;
 }
 
 // ================= Tag und Nacht =================
@@ -278,7 +293,7 @@ export class Lichtstrahlen {
   }
   /** sonne: Einheitsvektor zur Sonne; nacht 0…1 */
   update(ziel: THREE.Vector3, sonne: THREE.Vector3, nacht: number, zeit: number): void {
-    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.14 + nacht * 0.03;
+    const Z = Lichtstrahlen.Z, gx0 = Math.floor(ziel.x / Z), gz0 = Math.floor(ziel.z / Z), tag = Math.pow(1 - Math.min(1, nacht * 1.3), 2), st = tag * 0.08 + nacht * 0.02;
     const x = new THREE.Vector3(-sonne.z, 0, sonne.x).normalize(), z = new THREE.Vector3().crossVectors(x, sonne), m = new THREE.Matrix4().makeBasis(x, sonne, z), q = new THREE.Quaternion().setFromRotationMatrix(m);
     const farbe = new THREE.Color().set('#ffe0aa').lerp(new THREE.Color('#9db4ff'), Math.min(1, nacht * 1.4));
     for (let a = -2; a < 2; a++) for (let b = -2; b < 2; b++) {
