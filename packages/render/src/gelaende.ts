@@ -32,11 +32,11 @@ function farbeAn(wx: number, wz: number, hv: number, ny: number, S: (x: number, 
   const m1 = fbm(wx, wz, 0.55, sd + 31), m2 = fbm(wx, wz, 0.06, sd + 32), m3 = fbm(wx, wz, 0.18, sd + 33);
   const grau = art === 'asche' || art === 'schnee' || art === 'l';
   if (art === 'gras') {
-    { const l = r * 0.2126 + g * 0.7152 + b * 0.0722; r = (r + (l - r) * 0.3) * 0.9; g = (g + (l - g) * 0.3) * 0.88; b = (b + (l - b) * 0.3) * 0.8; } // etwas gedeckter und wärmer, wie echtes Gras
+    { const l = r * 0.2126 + g * 0.7152 + b * 0.0722; r = (r + (l - r) * 0.5) * 0.82; g = (g + (l - g) * 0.5) * 0.78; b = (b + (l - b) * 0.5) * 0.68; } // etwas gedeckter und wärmer, wie echtes Gras
     const warm = (m2 - 0.5) * 2.2; // große Flecken: sonnengelbes Gras gegen dunkles, kühles
-    r *= 1 + warm * 0.55; g *= 1 + warm * 0.16; b *= 1 - warm * 0.35;
-    const erde = glatt(0.62, 0.78, m3); // kahle Stellen
-    r += (ERDE[0] - r) * erde * 0.55; g += (ERDE[1] - g) * erde * 0.55; b += (ERDE[2] - b) * erde * 0.55;
+    r *= 1 + warm * 0.8; g *= 1 + warm * 0.2; b *= 1 - warm * 0.45;
+    const erde = glatt(0.5, 0.72, m3); // kahle und trockene Stellen
+    r += (ERDE[0] - r) * erde * 0.65; g += (ERDE[1] - g) * erde * 0.65; b += (ERDE[2] - b) * erde * 0.65;
   }
   const hell = (grau ? 0.88 : 0.8) + (grau ? 0.22 : 0.4) * m1;
   r *= hell; g *= hell; b *= hell;
@@ -77,7 +77,7 @@ export function bodenNetz(cx: number, cz: number, fein: boolean, S: (x: number, 
     // eingebrannte Verdunkelung: unter Kronen und Felsen, in Mulden (Krümmung der Höhe)
     let occ = 0; for (let q = 0; q < quellen.length; q += 4) { const d = Math.hypot(wx - quellen[q], wz - quellen[q + 1]), r = quellen[q + 2]; if (d < r) { const t = 1 - d / r; occ += quellen[q + 3] * t * t; } }
     const mulde = Math.max(0, (bodenHoehe(wx - 1, wz) + bodenHoehe(wx + 1, wz) + bodenHoehe(wx, wz - 1) + bodenHoehe(wx, wz + 1)) / 4 - bodenHoehe(wx, wz));
-    const streu = Math.min(0.7, occ * 1.1), schatten = (1 - Math.min(0.5, occ)) * (1 - Math.min(0.3, mulde * 0.9)), col = farbeAn(wx, wz, h, nm[1], S, sd).map((q, k) => (q + ([0.2, 0.12, 0.055][k] - q) * streu * 0.55) * 1.7 * schatten * (k === 2 ? 1.0 + (1 - schatten) * 0.25 : k === 0 ? 1 - (1 - schatten) * 0.1 : 1));
+    const streu = Math.min(0.7, occ * 1.1), schatten = (1 - Math.min(0.5, occ)) * (1 - Math.min(0.3, mulde * 0.9)), col = farbeAn(wx, wz, h, nm[1], S, sd).map((q, k) => (q + ([0.2, 0.12, 0.055][k] - q) * streu * 0.55) * 1.4 * schatten * (k === 2 ? 1.0 + (1 - schatten) * 0.25 : k === 0 ? 1 - (1 - schatten) * 0.1 : 1));
     uvk[(a * V + b) * 2] = wx / 6; uvk[(a * V + b) * 2 + 1] = wz / 6; p[o] = lx; p[o + 1] = h; p[o + 2] = lz; nn[o] = nm[0]; nn[o + 1] = nm[1]; nn[o + 2] = nm[2]; c[o] = col[0]; c[o + 1] = col[1]; c[o + 2] = col[2];
   }
   const idx: number[] = [], skp: number[] = [], skn: number[] = [], skc: number[] = [], ski: number[] = [];

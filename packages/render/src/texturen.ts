@@ -24,7 +24,7 @@ export function bodenTex(): THREE.CanvasTexture {
   const n = 512, [cv, c] = leinwand(n);
   c.fillStyle = '#b4b4b0'; c.fillRect(0, 0, n, n);
   for (let i = 0; i < 1400; i++) { // weiche Flecken (groß und klein)
-    const x = rz(i, 1, 0, 81) * n, y = rz(i, 2, 0, 81) * n, r = 5 + Math.pow(rz(i, 3, 0, 81), 2) * 46, hell = rz(i, 4, 0, 81) > 0.5, a = 0.04 + rz(i, 5, 0, 81) * 0.09;
+    const x = rz(i, 1, 0, 81) * n, y = rz(i, 2, 0, 81) * n, r = 5 + Math.pow(rz(i, 3, 0, 81), 2) * 46, hell = rz(i, 4, 0, 81) > 0.5, a = 0.08 + rz(i, 5, 0, 81) * 0.16;
     nahtlos(n, x, y, r, (dx, dy) => { const g = c.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r); const k = hell ? '255,255,250' : '40,40,32'; g.addColorStop(0, `rgba(${k},${a})`); g.addColorStop(1, `rgba(${k},0)`); c.fillStyle = g; c.fillRect(x + dx - r, y + dy - r, 2 * r, 2 * r); });
   }
   c.lineCap = 'round';
