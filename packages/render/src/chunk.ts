@@ -67,9 +67,11 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
   if (GLATT.an && stufe >= 3) for (let x = ox; x < ox + CH; x++) for (let z = oz; z < oz + CH; z++) { // reiner Unterwuchs: Farne, Blütenbüsche, dichteres Gras (nur Darstellung, ohne Einfluss auf die Rechnung)
     const s = S(x, z); if (!s || s.a !== 'gras') continue;
     if (!frei(x, z, s)) {
-      if (s.db < 24) { // Bauzone um die Feste: nur dünnes Gras, nicht auf dem Pfad (Bauplätze bleiben sichtbar eben)
-        if (s.db < 9 || amPfad(x, z, 4) || h3(x, 61, z) > 0.3) continue;
-        const jx = h3(x, 34, z), jz = h3(x, 35, z); natur.push(7, x - ox + 0.15 + jx * 0.7, bodenHoehe(x + 0.15 + jx * 0.7, z + 0.15 + jz * 0.7), z - oz + 0.15 + jz * 0.7, h3(x, 36, z) * 6.283, 0.8 + h3(x, 37, z) * 0.5, Math.floor(h3(x, 38, z) * 6), 0); continue;
+      if (s.db < 24) { // Bauzone um die Feste: Gras nur in Flecken (kein Teppich auf dem Pfad), dünner als im Freien, damit Bauplätze erkennbar bleiben
+        if (s.db < 9 || amPfad(x, z, 4)) continue;
+        const fleck = fbm(x, z, 0.075, seed() + 101) * 0.75 + fbm(x, z, 0.22, seed() + 102) * 0.25, teppich = Math.min(1, Math.max(0, (fleck - 0.46) / 0.12)), zahl = Math.floor(teppich * 2.6 + h3(x, 61, z) * 0.5);
+        for (let q = 0; q < Math.min(4, zahl); q++) { const jx = h3(x, 34 + q, z), jz = h3(x, 35 + q, z), gx = x - ox + 0.1 + jx * 0.8, gz = z - oz + 0.1 + jz * 0.8; natur.push(7, gx, bodenHoehe(ox + gx, oz + gz), gz, h3(x, 36 + q, z) * 6.283, 0.55 + h3(x, 37 + q, z) * 0.4, Math.floor(h3(x, 38 + q, z) * 6), 0); }
+        continue;
       }
       if (!amPfad(x, z, 5)) continue; // außerhalb der Bauzone nur der Wegrand bekommt Bewuchs, die übrigen gesperrten Stellen (Risse, Kristalle) nicht
     }
