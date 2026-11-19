@@ -78,7 +78,7 @@ function wasser(): THREE.Material {
   m.colorNode = Fn(() => {
     const p = positionWorld.xz, t = uZeit;
     const welle = (dx: number, dz: number, k: number, a: number, sp: number, ph: number) => vec2(dx, dz).mul(a * k).mul(cos(dot(vec2(dx, dz), p).mul(k).add(t.mul(sp)).add(ph)));
-    const g = welle(0.8, 0.6, 0.9, 0.10, 0.9, 0).add(welle(-0.5, 0.85, 1.6, 0.07, 1.3, 1.7)).add(welle(0.95, -0.3, 2.7, 0.045, 1.9, 3.1)).add(welle(-0.7, -0.7, 4.3, 0.03, 2.6, 0.6)).toVar();
+    const g = welle(0.8, 0.6, 1.1, 0.06, 0.9, 0).add(welle(-0.5, 0.85, 2.3, 0.04, 1.3, 1.7)).add(welle(0.95, -0.3, 5.0, 0.03, 2.0, 3.1)).add(welle(-0.7, -0.7, 9.5, 0.022, 2.8, 0.6)).add(welle(0.3, -0.95, 16, 0.016, 3.6, 2.2)).toVar();
     const q = p.mul(3).add(vec2(t.mul(0.35), t.mul(-0.28))), n0 = rausch(q), nx = rausch(q.add(vec2(0.06, 0))), nz = rausch(q.add(vec2(0, 0.06)));
     g.addAssign(vec2(n0.sub(nx), n0.sub(nz)).mul(1.4));
     const N = normalize(vec3(g.x.negate(), 1, g.y.negate())), V = normalize(cameraPosition.sub(positionWorld)), R = reflect(V.negate(), N);
@@ -90,7 +90,7 @@ function wasser(): THREE.Material {
     const sch = smoothstep(0.32, 0, tiefe.add(rausch(p.mul(4).add(t.mul(0.2))).sub(0.5).mul(0.22))).mul(sin(t.mul(1.2).add(tiefe.mul(18))).mul(0.45).add(0.55));
     c.assign(mix(c, vec3(0.92, 0.95, 0.92).mul(uNacht.oneMinus().mul(0.45).add(0.55)), clamp(sch, 0, 1).mul(0.8)));
     const lm = lichtWert(); c.addAssign(uLichtFarbe.mul(lm.mul(lm)).mul(uNacht).mul(0.35));
-    const alpha = clamp(smoothstep(0, 0.9, tiefe).mul(0.55).add(0.4).add(fr.mul(0.4)).add(sch.mul(0.5)), 0, 1);
+    const alpha = clamp(smoothstep(0, 1.4, tiefe).mul(0.55).add(0.28).add(fr.mul(0.35)).add(sch.mul(0.5)), 0, 1);
     return vec4(c, alpha);
   })();
   return m;

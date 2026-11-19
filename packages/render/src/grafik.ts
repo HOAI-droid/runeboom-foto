@@ -157,9 +157,9 @@ const wasserGL = () => new THREE.ShaderMaterial({
   fragmentShader: `uniform float uZeit, uNacht; uniform vec3 uTief, uHell, uFunkeln, uLichtFarbe, uSonne, uSonneC; uniform sampler2D uLicht; varying vec3 vW; varying float vT; ${NOISE_GLSL}
     void main(){
       float t = uZeit; vec2 p = vW.xz;
-      vec2 d1 = vec2(0.8, 0.6), d2 = vec2(-0.5, 0.85), d3 = vec2(0.95, -0.3), d4 = vec2(-0.7, -0.7);
-      vec2 g = d1 * 0.10 * 0.9 * cos(dot(d1, p) * 0.9 + t * 0.9) + d2 * 0.07 * 1.6 * cos(dot(d2, p) * 1.6 + t * 1.3 + 1.7)
-             + d3 * 0.045 * 2.7 * cos(dot(d3, p) * 2.7 + t * 1.9 + 3.1) + d4 * 0.03 * 4.3 * cos(dot(d4, p) * 4.3 + t * 2.6 + 0.6);
+      vec2 d1 = vec2(0.8, 0.6), d2 = vec2(-0.5, 0.85), d3 = vec2(0.95, -0.3), d4 = vec2(-0.7, -0.7), d5 = vec2(0.3, -0.95);
+      vec2 g = d1 * 0.066 * cos(dot(d1, p) * 1.1 + t * 0.9) + d2 * 0.092 * cos(dot(d2, p) * 2.3 + t * 1.3 + 1.7) + d3 * 0.15 * cos(dot(d3, p) * 5.0 + t * 2.0 + 3.1)
+             + d4 * 0.21 * cos(dot(d4, p) * 9.5 + t * 2.8 + 0.6) + d5 * 0.26 * cos(dot(d5, p) * 16.0 + t * 3.6 + 2.2); // fünf Wellenstufen, fein bis grob
       vec2 q = p * 3.0 + vec2(t * 0.35, -t * 0.28); float n0 = rausch(q), nx = rausch(q + vec2(0.06, 0.0)), nz = rausch(q + vec2(0.0, 0.06));
       g += vec2(n0 - nx, n0 - nz) * 1.4;
       vec3 N = normalize(vec3(-g.x, 1.0, -g.y)), V = normalize(cameraPosition - vW), R = reflect(-V, N);
@@ -171,7 +171,7 @@ const wasserGL = () => new THREE.ShaderMaterial({
       float sch = smoothstep(0.32, 0.0, tiefe + (rausch(p * 4.0 + t * 0.2) - 0.5) * 0.22) * (0.55 + 0.45 * sin(t * 1.2 + tiefe * 18.0)); // Uferschaum
       c = mix(c, vec3(0.92, 0.95, 0.92) * (0.55 + 0.45 * (1.0 - uNacht)), clamp(sch, 0.0, 1.0) * 0.8);
       float lm = texture2D(uLicht, (vW.xz + ${WR.toFixed(1)}) / ${(2 * WR).toFixed(1)}).r; c += uLichtFarbe * lm * lm * uNacht * 0.35;
-      float alpha = clamp(0.4 + smoothstep(0.0, 0.9, tiefe) * 0.55 + fr * 0.4 + sch * 0.5, 0.0, 1.0);
+      float alpha = clamp(0.28 + smoothstep(0.0, 1.4, tiefe) * 0.55 + fr * 0.35 + sch * 0.5, 0.0, 1.0);
       gl_FragColor = vec4(c, alpha);
     }`
 });
@@ -249,7 +249,7 @@ export function becken(zellen: Float32Array, mat: THREE.Material): THREE.Mesh {
 
 // ================= Tag und Nacht =================
 export interface Stimmung { top: string; bot: string; fog: string; sun: string; sunI: number; sunP: [number, number, number]; hemiS: string; hemiG: string; hemiI: number; exp: number; glow: number; lamp: number; tint: string; bloom: number; wasser: [string, string, string]; nebel: string; dunst: number }
-export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffbe6e', sunI: 5.4, sunP: [-50, 34, 34], hemiS: '#8fa8dc', hemiG: '#5a3e22', hemiI: 1.15, exp: 1.28, glow: 0.62, lamp: 0.3, tint: '#ffd2a0', bloom: 0.5, wasser: ['#1f5a6e', '#4fa3b3', '#ffe2b0'], nebel: '#f8e2bc', dunst: 0.25 };
+export const TAG: Stimmung = { top: '#3c5c8f', bot: '#f2bf86', fog: '#e7b48a', sun: '#ffbe6e', sunI: 5.4, sunP: [-50, 34, 34], hemiS: '#8fa8dc', hemiG: '#5a3e22', hemiI: 1.15, exp: 1.28, glow: 0.62, lamp: 0.3, tint: '#ffd2a0', bloom: 0.5, wasser: ['#1b7f8c', '#6fd2c6', '#fff1c8'], nebel: '#f8e2bc', dunst: 0.25 };
 export const NACHT: Stimmung = { top: '#060b1e', bot: '#24386a', fog: '#1b2a52', sun: '#9db4ff', sunI: 1.7, sunP: [44, 58, -24], hemiS: '#5a73b8', hemiG: '#241c3c', hemiI: 0.85, exp: 1.25, glow: 0.7, lamp: 0.8, tint: '#c8d6ff', bloom: 0.28, wasser: ['#0b1a33', '#21466e', '#9db4ff'], nebel: '#55607e', dunst: 0.16 };
 const c1 = new THREE.Color(), c2 = new THREE.Color();
 const mixC = (a: string, b: string, t: number, out: THREE.Color) => out.copy(c1.set(a)).lerp(c2.set(b), t);
