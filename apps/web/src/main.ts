@@ -1405,7 +1405,7 @@ renderer.setAnimationLoop(() => {
       obj.bild(dt, (x, z) => spiel!.licht(x, z), d > 0.5, camera, 0);
       if (!prolog) menueKamera(enth.aktiv && enth.phase === 0 ? 0 : dt);
       const dist = camera.position.distanceTo(controls.target);
-      licht.fog.far = 330 + dist * 2.2; licht.fog.near = licht.fog.far * 0.3; licht.folge(controls.target, camera);
+      licht.fog.far = 360 + dist * 2.4; licht.fog.near = licht.fog.far * 0.45; licht.folge(controls.target, camera);
       planZeit -= dt; if (planZeit <= 0) { welt.planen(controls.target, dist, camera); planZeit = 0.25; }
       zeichnen();
       return;
@@ -1495,7 +1495,7 @@ renderer.setAnimationLoop(() => {
     const tg = controls.target, cx = THREE.MathUtils.clamp(tg.x, -WR + 20, WR - 20), cz = THREE.MathUtils.clamp(tg.z, -WR + 20, WR - 20);
     if (cx !== tg.x || cz !== tg.z) { const d = new THREE.Vector3(cx - tg.x, 0, cz - tg.z); tg.add(d); camera.position.add(d); }
     const dist = camera.position.distanceTo(tg);
-    licht.fog.far = 330 + dist * 2.2; licht.fog.near = licht.fog.far * 0.3;
+    licht.fog.far = 360 + dist * 2.4; licht.fog.near = licht.fog.far * 0.45;
     licht.folge(tg, camera);
     planZeit -= dt; if (planZeit <= 0) { welt.planen(tg, dist, camera); planZeit = 0.25; }
     uiZeit -= dt; if (uiZeit <= 0) { anzeige(); zeichneKarte(); uiZeit = 0.15; }
