@@ -33,6 +33,11 @@ function farbeAn(wx: number, wz: number, hv: number, ny: number, S: (x: number, 
   const grau = art === 'asche' || art === 'schnee' || art === 'l';
   if (art === 'gras') {
     { const l = r * 0.2126 + g * 0.7152 + b * 0.0722; r = (r + (l - r) * 0.5) * 0.82; g = (g + (l - g) * 0.5) * 0.78; b = (b + (l - b) * 0.5) * 0.68; } // etwas gedeckter und wärmer, wie echtes Gras
+    { // Wiesenflecken wie in chunk.ts (gleiches Rauschen): unter dem Teppich sattes, dunkleres Grün, daneben trockener Boden
+      const fleck = fbm(wx, wz, 0.075, sd + 101) * 0.75 + fbm(wx, wz, 0.22, sd + 102) * 0.25, t = glatt(0.46, 0.58, fleck);
+      r += (r * 0.8 - r) * t; g += (g * 1.12 - g) * t; b += (b * 0.8 - b) * t;
+      r += (ERDE[0] - r) * (1 - t) * 0.18; g += (ERDE[1] - g) * (1 - t) * 0.18; b += (ERDE[2] - b) * (1 - t) * 0.18;
+    }
     const warm = (m2 - 0.5) * 2.2; // große Flecken: sonnengelbes Gras gegen dunkles, kühles
     r *= 1 + warm * 0.8; g *= 1 + warm * 0.2; b *= 1 - warm * 0.45;
     const erde = glatt(0.5, 0.72, m3); // kahle und trockene Stellen

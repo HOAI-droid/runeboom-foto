@@ -82,8 +82,11 @@ export function bauChunk(cx: number, cz: number, aenderungen: [number, number, s
     // Gras: Dichte nach Abstand zu Weg und Wasser, im Wald kürzer; mehrere Büschel je Block mit Versatz
     const pr = pfadRand(x + 0.5, z + 0.5);
     let wd = 9; for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) { const q = S(x + dx, z + dz); if (q && q.a === 'w') wd = Math.min(wd, Math.hypot(dx, dz)); }
-    const dichte = Math.min(1, Math.max(0, (pr - 0.2) / 1.6)) * Math.min(1, Math.max(0, (wd - 1.8 - 1.8 * fbm(x, z, 0.3, seed() + 97)) / 2.2)) * (0.55 + 0.9 * fbm(x, z, 0.2, seed() + 98)), zahl = Math.floor(dichte * (wald > 0.52 ? 2.2 : 3.4) + h3(x, 70, z));
-    for (let q = 0; q < Math.min(4, zahl); q++) { const gx = lx + (h3(x, 71 + q, z) - 0.5) * 0.9, gz = lz + (h3(x, 75 + q, z) - 0.5) * 0.9; natur.push(7, gx, bodenHoehe(ox + gx, oz + gz), gz, h3(x, 79 + q, z) * 6.283, (wald > 0.52 ? 0.7 : 0.85) + h3(x, 83 + q, z) * 0.5, Math.floor(h3(x, 87 + q, z) * 6), 0); }
+    const rand = Math.min(1, Math.max(0, (pr - 0.2) / 1.6)) * Math.min(1, Math.max(0, (wd - 1.8 - 1.8 * fbm(x, z, 0.3, seed() + 97)) / 2.2));
+    // Wiesenflecken: Gras wächst zusammenhängend in Flecken (dicht wie ein Teppich), dazwischen kaum etwas – keine einzelnen Inseln
+    const fleck = fbm(x, z, 0.075, seed() + 101) * 0.75 + fbm(x, z, 0.22, seed() + 102) * 0.25, teppich = Math.min(1, Math.max(0, (fleck - 0.46) / 0.12));
+    const zahl = Math.floor(rand * (teppich * (wald > 0.52 ? 3.2 : 5.6) + (1 - teppich) * 0.25) + h3(x, 70, z));
+    for (let q = 0; q < Math.min(6, zahl); q++) { const gx = lx + (h3(x, 71 + q, z) - 0.5) * 1.0, gz = lz + (h3(x, 75 + q, z) - 0.5) * 1.0; natur.push(7, gx, bodenHoehe(ox + gx, oz + gz), gz, h3(x, 79 + q, z) * 6.283, (wald > 0.52 ? 0.55 : 0.6) + h3(x, 83 + q, z) * 0.45, Math.floor(h3(x, 87 + q, z) * 6), 0); }
     // Wegrand: trockene Büschel und Kiesel
     if (pr > -0.2 && pr < 1.4) {
       if (h3(x, 91, z) < 0.55) natur.push(7, lx, y, lz, h3(x, 36, z) * 6.283, 0.55 + h3(x, 37, z) * 0.4, 3, 0);
