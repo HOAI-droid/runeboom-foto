@@ -164,7 +164,7 @@ function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.Buffe
   const [d, m, h] = P.farben.map((c) => '#' + new THREE.Color(c).offsetHSL((R(7) - 0.5) * 0.07, (R(13) - 0.5) * 0.15, (R(8) - 0.5) * 0.1).getHexString()) as [string, string, string];
   const th = W(P.stamm, 1), neigung = (R(5) - 0.5) * (art === 'birke' ? 2.4 : 1.6), hoehe = W(P.hoehe, 3), breite = W(P.breite, 2), dicke = W(P.dicke, 6), dichte = W(P.dichte, 14), blatt = W(P.blatt, 15), steilV = 0.75 + 0.5 * R(4), knV = 0.7 + 0.7 * R(9);
   const laenge = [th, Wz.laenge[0] * breite * (0.85 + 0.3 * R(10)), Wz.laenge[1] * breite * (0.85 + 0.3 * R(11)), Wz.laenge[2] * breite], radius = [dicke, dicke * 0.42, dicke * 0.2, dicke * 0.09], sek = fein ? [6, 4, 3, 2] : [4, 3, 2, 2];
-  const blattProZweig = Math.max(3, Math.round(Wz.blaetter * dichte * 0.55 * (fein ? 1 : 0.3))), punkte: number[][] = [], hoch = new THREE.Vector3(0, 1, 0), ref = new THREE.Vector3(1, 0, 0), a1 = new THREE.Vector3(), a2 = new THREE.Vector3(), q = new THREE.Quaternion();
+  const blattProZweig = Math.max(3, Math.round(Wz.blaetter * dichte * 0.95 * (fein ? 1 : 0.35))), punkte: number[][] = [], hoch = new THREE.Vector3(0, 1, 0), ref = new THREE.Vector3(1, 0, 0), a1 = new THREE.Vector3(), a2 = new THREE.Vector3(), q = new THREE.Quaternion();
   const drehe = (vec: THREE.Vector3, achse: THREE.Vector3, w: number) => vec.applyQuaternion(q.setFromAxisAngle(achse, w));
   const wachse = (start: THREE.Vector3, richtung: THREE.Vector3, ebene: number, len: number, rad: number): void => {
     const pts: { p: THREE.Vector3; d: THREE.Vector3; r: number }[] = [], n = sek[ebene], sl = len / n, dir = richtung.clone().normalize(), pos = start.clone();
@@ -196,8 +196,8 @@ function laubbaum(v: number, art: Art, beeren = false, fein = true): THREE.Buffe
   mx /= punkte.length; my /= punkte.length; mz /= punkte.length; for (const [x, , z] of punkte) hx = Math.max(hx, Math.hypot(x - mx, z - mz));
   const farbe = kronenFarbe(my, Math.max(1.5, (ymax - ymin) / 2), Math.max(1.5, hx), s, d, m, h);
   const streu: Streuung = { h: P.streuung[0], s: P.streuung[1], l: P.streuung[2], form: P.form, aus: P.ausreisser.map((c) => new THREE.Color(c)), ausWahr: 0.14 + 0.1 * R(16) };
-  t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 0.95 : 1.6) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
-  { const kern = new THREE.Color(m).multiplyScalar(0.45); t.push(buschel(hx * 0.45, (ymax - ymin) * 0.22, hx * 0.45, mx, my, mz, s, () => kern, 1, 0.3)); }
+  t.push(karten([mx, my, mz], Math.max(1.5, hx), Math.max(1.5, (ymax - ymin) / 2), punkte.length, (fein ? 1.1 : 1.7) * blatt, s, farbe, [0.35, 1.0], streu, punkte));
+  { const kern = new THREE.Color(m).multiplyScalar(0.45); t.push(buschel(hx * 0.16, (ymax - ymin) * 0.1, hx * 0.16, mx, my - 0.2, mz, s, () => kern, 0, 0.3)); // winziger dunkler Kern, damit kein glatter Blob durchscheint }
   if (beeren) for (let i = 0; i < 8; i++) { const [x, y, z] = punkte[Math.floor(rz(i, 3, v, 5) * punkte.length)], aa = rz(i, 1, v, 5) * 6.28; t.push(fertig(new THREE.IcosahedronGeometry(0.16, 1).translate(x + Math.cos(aa) * 0.8, y + (rz(i, 2, v, 5) - 0.5), z + Math.sin(aa) * 0.8), () => new THREE.Color('#9be8ff').multiplyScalar(2.6))); }
   if (fein) for (let k = 0; k < 3 + Math.floor(R(10) * 3); k++) { const aa = k * 2.1 + R(11) * 6, dx = Math.cos(aa), dz = Math.sin(aa), l = 1.3 + R(12) * 0.8; t.push(ast(dx * 0.25, 0.15, dz * 0.25, dx * l, -0.3, dz * l, dicke * 0.45, dicke * 0.15, P.rinde, 5)); }
   return vereint(t, true);
